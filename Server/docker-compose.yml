@@ -14,5 +14,9 @@ services:
       
     volumes:
       - ./app:/app
+      - ./secrets:/secrets:ro
       
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+    environment:
+      FIREBASE_CREDENTIAL_PATH: /secrets/firebase-service-account.json
