@@ -1,49 +1,24 @@
-import os
-from pathlib import Path
-
 import uvicorn
-import firebase_admin
-from firebase_admin import credentials
 from fastapi import FastAPI
 
+# --- Firebase Initialization ---
+# Import firebase_setup to run the initialization code on startup
+# This line MUST be before any code that uses 'firebase_admin'
+import app.firebase_setup
 
-# Create an instance of the FastAPI class
+# --- Import Routers ---
+from app.routers import general, auth, users
+
+# --- FastAPI App Initialization ---
 app = FastAPI(
-    title="My Awesome API",
+    title="AutoShare Server API",
     docs_url="/"
 )
 
-env_path = os.getenv("FIREBASE_CREDENTIAL_PATH")
-if env_path:
-    cred_path = Path(env_path)
-else:
-    # main.py is in Server/app/, so go up one directory to Server/
-    cred_path = Path(__file__).resolve().parent.parent / "firebase-service-account.json"
-
-if not cred_path.exists():
-    raise FileNotFoundError(
-        f"Firebase service account file not found at {cred_path}. "
-        "Set FIREBASE_CREDENTIAL_PATH environment variable if the file is located elsewhere."
-    )
-
-if not firebase_admin._apps:
-    cred = credentials.Certificate(str(cred_path))
-    firebase_admin.initialize_app(cred)
-
-
-@app.get("/")
-def read_root():
-    """A simple root endpoint that returns a welcome message."""
-    return {"message": "Hello, FastAPI with Docker!"}
-
-@app.post('/signup')
-async def signup():
-    pass
-
-@app.post('/login')
-async def login():
-    pass
-
-@app.post('/ping')
-async def ping():
-    pass
+# --- Include Routers ---
+# Note: The 'general' router includes the root path ("/")
+# It's often good to include it last if other routers have specific root paths,
+# but here it's fine.
+app.include_router(general.router)
+app.include_router(auth.router)
+app.include_router(users.router)
