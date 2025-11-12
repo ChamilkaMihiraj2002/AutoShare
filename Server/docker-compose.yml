@@ -16,7 +16,12 @@ services:
       - ./app:/app
       - ./secrets:/secrets:ro
       
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+    env_file:
+      - .env
 
     environment:
       FIREBASE_CREDENTIAL_PATH: /secrets/firebase-service-account.json
+      # Optionally loaded from .env; defaults to empty if not set
+      FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}
