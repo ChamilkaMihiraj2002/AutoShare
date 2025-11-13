@@ -1,25 +1,42 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
+# Import our new dependencies and schemas
 from app.auth_deps import get_current_user
+from app.db import get_database
+from app.crud.user import get_user_profile_by_uid
+from app.schemas import UserProfile
 
 router = APIRouter(
     prefix="/users",
     tags=["Users"]
 )
 
-@router.get("/me")
-def read_current_user(decoded_token: dict = Depends(get_current_user)):
+@router.get("/me", response_model=UserProfile)
+async def read_current_user(
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database) # Inject the DB
+):
     """
-    A protected endpoint that requires a valid Firebase ID Token.
+    Get the current user's Firebase token info AND their MongoDB profile.
     
-    The 'decoded_token' is injected by the 'get_current_user' dependency.
+    The 'decoded_token' is injected by 'get_current_user'.
+    The 'db' is injected by 'get_database'.
     """
-    # You can now access user information from the decoded token
     user_uid = decoded_token.get("uid")
-    user_email = decoded_token.get("email")
     
-    return {
-        "message": f"Hello, {user_email or user_uid}!",
-        "uid": user_uid,
-        "email": user_email,
-        "all_token_claims": decoded_token
-    }
+    # Fetch profile from MongoDB
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    
+    if not profile:
+        # This case (Firebase user exists but no profile) should be rare
+        # but could happen if registration rollback fails.
+        raise HTTPException(
+            status_code=404, 
+            detail="User profile not found in database."
+        )
+    
+    # `profile` is a dict from Mongo, including `_id`
+    # The UserProfile schema will automatically map `_id` to `uid`
+    # because we used Field(alias="_id") and Config.populate_by_name
+    return profile
