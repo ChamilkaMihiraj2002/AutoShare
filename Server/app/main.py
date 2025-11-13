@@ -1,14 +1,36 @@
+import uvicorn
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 
-# Create an instance of the FastAPI class
-app = FastAPI(title="My Awesome API")
+# --- Firebase Initialization ---
+import app.firebase_setup
 
-@app.get("/")
-def read_root():
-    """A simple root endpoint that returns a welcome message."""
-    return {"message": "Hello, FastAPI with Docker!"}
+# --- Import Routers ---
+from app.routers import general, auth, users
+# --- Import DB Connection Handlers ---
+from app.db import connect_to_mongo, close_mongo_connection
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: str | None = None):
-    """An endpoint with a path parameter and an optional query parameter."""
-    return {"item_id": item_id, "q": q}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handles application startup and shutdown events.
+    """
+    # On startup
+    await connect_to_mongo()
+    yield
+    # On shutdown
+    await close_mongo_connection()
+
+
+# --- FastAPI App Initialization ---
+app = FastAPI(
+    title="My Awesome API",
+    docs_url="/",
+    lifespan=lifespan  # Use the new lifespan manager
+)
+
+# --- Include Routers ---
+app.include_router(general.router)
+app.include_router(auth.router)
+app.include_router(users.router)

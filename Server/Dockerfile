@@ -1,11 +1,13 @@
 # Start from an official Python base image
 FROM python:3.14-slim
 
-# Set the working directory inside the container
-WORKDIR /app
+# Set the working directory inside the container to root so '/app' is
+# discoverable as a top-level package (this allows `import app.*` to work)
+WORKDIR /
 
 # Copy the requirements file into the container
 COPY requirements.txt .
+
 
 # Install the Python dependencies
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
@@ -24,4 +26,4 @@ EXPOSE 8000
 # --host 0.0.0.0: Makes the server accessible from outside the container
 # --port 8000: The port to run on (matches EXPOSE)
 #
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
