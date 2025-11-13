@@ -1,2 +1,6 @@
 fastapi
 uvicorn
+firebase_admin
+requests
+email-validator
+motor[srv]
