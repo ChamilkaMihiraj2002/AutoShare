@@ -1,31 +1,46 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
-# --- User Profile Models ---
+# ==========================================
+# 1. SHARED PROFILE MODELS
+# ==========================================
 
 class UserProfileBase(BaseModel):
     """
-    Base model for user profile data (what we expect on creation).
+    Data required to create a profile.
+    Shared by both Email registration and Google registration.
     """
-    name: str
     address: str
     nic: str
     phone: str
-    role: str = "user" # Default role
+    role: str = "user"
+
+class UserProfileUpdate(BaseModel):
+    """
+    For updating profile fields later (PATCH /users/me).
+    """
+    address: str | None = None
+    nic: str | None = None
+    phone: str | None = None
+
+    @model_validator(mode='after')
+    def check_at_least_one_value(self) -> 'UserProfileUpdate':
+        if not self.model_dump(exclude_unset=True):
+            raise ValueError('At least one field must be provided for update')
+        return self
 
 class UserProfile(UserProfileBase):
     """
-    Full user profile model, including data from MongoDB.
-    We use the Firebase UID as the _id in MongoDB.
+    Full user profile model returned to client.
+    Used for: GET /users/me AND POST /auth/login/social
     """
-    uid: str = Field(alias="_id") # Map MongoDB's `_id` to `uid`
+    uid: str = Field(alias="_id") # Maps MongoDB '_id' to 'uid'
     email: EmailStr
 
     class Config:
-        populate_by_name = True # Allows mapping `_id` to `uid`
+        populate_by_name = True
         json_schema_extra = {
             "example": {
                 "uid": "FirebaseUID_12345",
-                "name": "John Doe",
                 "email": "user@example.com",
                 "address": "123 Main St",
                 "nic": "123456789V",
@@ -34,33 +49,45 @@ class UserProfile(UserProfileBase):
             }
         }
 
-# --- Auth request/response models ---
+# ==========================================
+# 2. REGISTRATION REQUESTS
+# ==========================================
 
-class RegisterRequest(BaseModel):
+class RegisterEmailRequest(BaseModel):
     """
-    Model for the /register endpoint. Includes auth and profile fields.
+    For POST /auth/register/email
+    Needs Auth info (Email/Pass) + Profile info
     """
     email: EmailStr
     password: str
-    # Add the new profile fields
-    name: str
+    # Profile Data
     address: str
     nic: str
     phone: str
-    role: str | None = "user" # Optional, defaults to 'user'
+    role: str | None = "user"
+
+class SocialProfileRequest(UserProfileBase):
+    """
+    For POST /auth/register/social
+    Only needs Profile info (Address/NIC/Phone).
+    UID/Email are extracted from the Token.
+    """
+    pass
 
 class RegisterResponse(BaseModel):
-    """
-    Response model for successful registration.
-    """
     uid: str
-    name: str
     email: EmailStr
-    message: str = "User registered successfully"
-    profile: UserProfileBase # Return the created profile data
+    message: str
+    profile: UserProfileBase
 
+# ==========================================
+# 3. LOGIN REQUESTS
+# ==========================================
 
 class LoginRequest(BaseModel):
+    """
+    For POST /auth/login (Email/Pass only)
+    """
     email: EmailStr
     password: str
 
