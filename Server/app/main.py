@@ -3,12 +3,12 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
 # --- Firebase Initialization ---
-import app.firebase_setup
+import app.core.firebase_setup
 
 # --- Import Routers ---
 from app.routers import general, auth, users
 # --- Import DB Connection Handlers ---
-from app.db import connect_to_mongo, close_mongo_connection
+from app.core.db import connect_to_mongo, close_mongo_connection
 
 
 @asynccontextmanager
