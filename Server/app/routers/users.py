@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Import our new dependencies and schemas
-from app.auth_deps import get_current_user
-from app.db import get_database
+from app.core.auth_deps import get_current_user
+from app.core.db import get_database
 from app.crud.user import get_user_profile_by_uid
 from app.schemas import UserProfile
 
