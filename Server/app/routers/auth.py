@@ -5,8 +5,8 @@ from firebase_admin import auth
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Import dependencies
-from app.db import get_database
-from app.auth_deps import get_current_user
+from app.core.db import get_database
+from app.core.auth_deps import get_current_user
 
 # Import schemas
 from app.schemas import (
