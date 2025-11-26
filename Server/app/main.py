@@ -1,12 +1,19 @@
 import uvicorn
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+# Load environment variables from a local .env file (if present)
+# This ensures `MONGODB_URL` and other env vars used during startup are available
+load_dotenv()
 
 # --- Firebase Initialization ---
 import app.core.firebase_setup
 
 # --- Import Routers ---
 from app.routers import general, auth, users
+
+
 # --- Import DB Connection Handlers ---
 from app.core.db import connect_to_mongo, close_mongo_connection
 
