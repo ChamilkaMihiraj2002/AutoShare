@@ -42,7 +42,7 @@ format: ## Run black on project (install locally if needed)
 	black .
 
 test: ## Run tests (if any)
-	pytest
+	pytest -q
 
 clean: ## Cleanup common artifacts
 	rm -rf .venv __pycache__ .pytest_cache

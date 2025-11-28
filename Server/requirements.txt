@@ -5,3 +5,5 @@ requests
 email-validator
 motor[srv]
 python-dotenv
+pytest
+pytest-asyncio
