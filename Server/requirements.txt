@@ -4,3 +4,4 @@ firebase_admin
 requests
 email-validator
 motor[srv]
+python-dotenv

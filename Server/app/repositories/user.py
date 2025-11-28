@@ -27,3 +27,26 @@ async def get_user_profile_by_uid(db: AsyncIOMotorDatabase, *, uid: str) -> dict
     """
     user_doc = await db[USER_COLLECTION].find_one({"_id": uid})
     return user_doc
+
+
+async def update_user_profile_by_uid(db: AsyncIOMotorDatabase, *, uid: str, update_data: dict) -> dict | None:
+    """
+    Updates an existing user profile document with the provided `update_data`.
+    Returns the updated document, or `None` if no document matched the UID.
+    """
+    if not update_data:
+        return await get_user_profile_by_uid(db, uid=uid)
+
+    result = await db[USER_COLLECTION].update_one({"_id": uid}, {"$set": update_data})
+    if result.matched_count == 0:
+        return None
+    updated_doc = await db[USER_COLLECTION].find_one({"_id": uid})
+    return updated_doc
+
+
+async def delete_user_profile_by_uid(db: AsyncIOMotorDatabase, *, uid: str) -> bool:
+    """
+    Deletes a user profile document by UID. Returns True if a document was deleted.
+    """
+    result = await db[USER_COLLECTION].delete_one({"_id": uid})
+    return result.deleted_count == 1
