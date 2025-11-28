@@ -35,6 +35,8 @@ jobs:
 
       - name: Install Python dependencies via Makefile
         run: make install
+        working-directory: ./Server
 
       - name: Run tests
         run: make test
+        working-directory: ./Server
