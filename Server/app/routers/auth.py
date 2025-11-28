@@ -20,7 +20,7 @@ from app.schemas import (
 )
 
 # Import CRUD operations
-from app.crud.user import create_user_profile, get_user_profile_by_uid
+from app.repositories.user import create_user_profile, get_user_profile_by_uid
 
 router = APIRouter(
     prefix="/auth",
