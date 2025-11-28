@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List
 
@@ -81,4 +81,4 @@ async def remove_vehicle(
     ok = await delete_vehicle(db=db, owner_uid=owner_uid, vehicle_id=vehicle_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
-    return
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
