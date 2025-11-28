@@ -12,6 +12,7 @@ import app.core.firebase_setup
 
 # --- Import Routers ---
 from app.routers import general, auth, users
+import app.routers.vehicles as vehicles
 
 
 # --- Import DB Connection Handlers ---
@@ -41,3 +42,4 @@ app = FastAPI(
 app.include_router(general.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(vehicles.router)
