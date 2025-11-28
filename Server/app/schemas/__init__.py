@@ -14,6 +14,12 @@ from .users_schema import (
     LoginRequest,
     AuthResponse,
 )
+from .vehicles_schema import (
+    VehicleBase,
+    VehicleCreate,
+    VehicleUpdate,
+    Vehicle,
+)
 
 __all__ = [
     "UserProfileBase",
@@ -24,4 +30,8 @@ __all__ = [
     "RegisterResponse",
     "LoginRequest",
     "AuthResponse",
+    "VehicleBase",
+    "VehicleCreate",
+    "VehicleUpdate",
+    "Vehicle",
 ]
