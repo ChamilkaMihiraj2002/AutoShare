@@ -9,9 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./Server
 
     steps:
       - name: Checkout repository
@@ -34,9 +31,7 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y build-essential || true
 
       - name: Install Python dependencies via Makefile
-        run: make install
-        working-directory: ./Server
+        run: make -C Server install
 
       - name: Run tests
-        run: make test
-        working-directory: ./Server
+        run: make -C Server test
