@@ -20,6 +20,12 @@ from .vehicles_schema import (
     VehicleUpdate,
     Vehicle,
 )
+from .rents_schema import (
+    RentBase,
+    RentCreate,
+    RentUpdate,
+    Rent,
+)
 
 __all__ = [
     "UserProfileBase",
@@ -34,4 +40,8 @@ __all__ = [
     "VehicleCreate",
     "VehicleUpdate",
     "Vehicle",
+    "RentBase",
+    "RentCreate",
+    "RentUpdate",
+    "Rent",
 ]
