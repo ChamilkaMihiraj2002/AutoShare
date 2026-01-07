@@ -13,6 +13,7 @@ import app.core.firebase_setup
 # --- Import Routers ---
 from app.routers import general, auth, users
 import app.routers.vehicles as vehicles
+import app.routers.rents as rents
 
 
 # --- Import DB Connection Handlers ---
@@ -43,3 +44,4 @@ app.include_router(general.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(vehicles.router)
+app.include_router(rents.router)
