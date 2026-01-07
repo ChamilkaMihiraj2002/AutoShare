@@ -39,7 +39,11 @@ class FakeCollection:
 
     async def insert_one(self, doc: dict):
         _id = doc.get("_id")
-        # emulate Mongo behavior: store and return inserted id
+        # emulate Mongo behavior: auto-generate _id when missing
+        if _id is None:
+            _id = f"auto_{len(self._store) + 1}"
+            doc["_id"] = _id
+        # store and return inserted id
         self._store[_id] = doc
         return FakeInsertOneResult(inserted_id=_id)
 
