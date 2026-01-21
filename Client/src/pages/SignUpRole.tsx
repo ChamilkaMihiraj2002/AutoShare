@@ -1,8 +1,14 @@
 import React from 'react';
 import { User, Car, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const SignUpRole = () => {
+  const navigate = useNavigate();
+
+  const handleRoleSelect = (role: 'renter' | 'owner') => {
+    navigate('/signup/details', { state: { role } });
+  };
+
   return (
     <div className="pt-24 min-h-screen bg-[#fcfcfc] flex flex-col items-center">
       <div className="text-center mb-12 px-4">
@@ -41,12 +47,12 @@ const SignUpRole = () => {
             ))}
           </ul>
 
-          <Link 
-            to="/signup/details" 
+          <button 
+            onClick={() => handleRoleSelect('renter')}
             className="w-full bg-[#003049] text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 group-hover:bg-[#002538] transition"
           >
             Continue as Renter <ArrowRight size={18} />
-          </Link>
+          </button>
         </div>
 
         {/* Owner Option */}
@@ -76,12 +82,12 @@ const SignUpRole = () => {
             ))}
           </ul>
 
-          <Link 
-            to="/signup/details" 
+          <button 
+            onClick={() => handleRoleSelect('owner')}
             className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 group-hover:bg-orange-600 transition shadow-lg shadow-orange-100"
           >
             Continue as Owner <ArrowRight size={18} />
-          </Link>
+          </button>
         </div>
 
       </div>
