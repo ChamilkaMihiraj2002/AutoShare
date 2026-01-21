@@ -1,12 +1,19 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Car, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 
 const SignUp = () => {
+  const navigate = useNavigate();
+
+  const handleCreateAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    navigate('/signup/role');
+  };
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-white">
       {/* Left Column: Form */}
-      <div className="w-full lg:w-[45%] p-8 md:p-16 lg:p-24 flex flex-col">
+      <div className="w-full lg:w-[45%] flex-1 px-6 py-12 md:p-16 lg:p-24 flex flex-col justify-center max-w-2xl mx-auto lg:mx-0">
         <Link to="/" className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900 mb-12">
           <ArrowLeft size={16} /> Back to Home
         </Link>
@@ -20,7 +27,7 @@ const SignUp = () => {
           <p className="text-gray-500">Join the community of trusted renters and owners.</p>
         </div>
 
-        <form className="space-y-5">
+        <form className="space-y-5" onSubmit={handleCreateAccount}>
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700">Full Name</label>
             <div className="relative">
@@ -50,7 +57,7 @@ const SignUp = () => {
             <span>I agree to the <button className="text-[#003049] font-bold">Terms of Service</button> and <button className="text-[#003049] font-bold">Privacy Policy</button></span>
           </label>
 
-          <button className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-100">
+          <button type="submit" className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-100">
             Create Account
           </button>
         </form>
@@ -62,7 +69,7 @@ const SignUp = () => {
       </div>
 
       {/* Right Column: Stats (Reused from SignIn) */}
-      <div className="hidden lg:flex w-[55%] bg-[#001d2d] relative items-center justify-center p-12">
+      <div className="hidden lg:flex w-[55%] flex-1 bg-[#001d2d] relative items-center justify-center p-12">
         <div className="relative z-10 w-full max-w-lg text-center text-white">
           <h2 className="text-3xl font-bold mb-6">Start Your Journey Today</h2>
           <div className="grid grid-cols-2 gap-6">

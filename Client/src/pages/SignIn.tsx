@@ -6,7 +6,7 @@ const SignIn = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-white">
       {/* Left Column: Sign In Form */}
-      <div className="w-full lg:w-[45%] p-8 md:p-16 lg:p-24 flex flex-col">
+      <div className="w-full lg:w-[45%] flex-1 px-6 py-12 md:p-16 lg:p-24 flex flex-col justify-center max-w-2xl mx-auto lg:mx-0">
         <Link to="/" className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900 transition mb-12">
           <ArrowLeft size={16} />
           Back to Home
@@ -87,7 +87,7 @@ const SignIn = () => {
       </div>
 
       {/* Right Column: Statistics Overlay */}
-      <div className="hidden lg:flex w-[55%] bg-[#001d2d] relative items-center justify-center p-12 overflow-hidden">
+      <div className="hidden lg:flex w-[55%] flex-1 bg-[#001d2d] relative items-center justify-center p-12 overflow-hidden">
         {/* Decorative Background Elements */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-orange-500/5 rounded-full -ml-20 -mb-20 blur-3xl"></div>
