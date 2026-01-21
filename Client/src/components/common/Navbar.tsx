@@ -1,63 +1,88 @@
-
 import { Car, Menu, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+  const isHome = location.pathname === "/";
+
+  // Prevent scrolling when mobile menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [menuOpen]);
+
+  // Dynamic styling based on current page
+  const navBaseClass = isHome 
+    ? "absolute bg-transparent text-white" 
+    : "sticky top-0 bg-white/80 backdrop-blur-md text-gray-800 border-b border-gray-100";
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
-    <nav className="absolute top-0 w-full z-50 flex items-center justify-between px-8 py-4 bg-white text-black">
-      <div className="flex items-center gap-2 font-bold text-xl">
-        <div className="bg-blue-500 p-1 rounded-md"><Car size={30} /></div>
+    <nav className={`w-full z-[100] flex items-center justify-between px-6 md:px-12 py-4 transition-all duration-300 ${navBaseClass}`}>
+      {/* Logo */}
+      <Link to="/" className="flex items-center gap-2 font-bold text-xl group" onClick={closeMenu}>
+        <div className="bg-[#003049] p-1.5 rounded-lg text-white group-hover:scale-110 transition-transform">
+          <Car size={24} />
+        </div>
         AutoShare
-      </div>
+      </Link>
+
       {/* Desktop Menu */}
-      <div className="hidden md:flex gap-8 text-sm font-medium">
-        <Link to="/" className="hover:text-orange-400">Home</Link>
-        <Link to="/services" className="hover:text-orange-400">Services</Link>
-        <Link to="/about" className="hover:text-orange-400">About</Link>
-        <Link to="/contact" className="hover:text-orange-400">Contact Us</Link>
+      <div className="hidden md:flex gap-8 text-sm font-semibold uppercase tracking-wide">
+        <Link to="/" className="hover:text-orange-500 transition-colors">Home</Link>
+        <Link to="/services" className="hover:text-orange-500 transition-colors">Services</Link>
+        <Link to="/about" className="hover:text-orange-500 transition-colors">About</Link>
+        <Link to="/contact" className="hover:text-orange-500 transition-colors">Contact Us</Link>
       </div>
-      {/* Mobile Hamburger Icon */}
-      <div className="md:hidden flex items-center">
-        <button
-          aria-label="Open menu"
-          onClick={() => setMenuOpen((prev) => !prev)}
-          className="focus:outline-none"
-        >
-          {menuOpen ? <X size={28} /> : <Menu size={28} />}
-        </button>
+
+      {/* Auth Buttons */}
+      <div className="hidden md:flex items-center gap-6">
+        <Link to="/signin" className="text-sm font-bold hover:opacity-80 transition">Sign In</Link>
+        <Link to="/signup" className="bg-orange-500 px-6 py-2.5 rounded-xl text-sm font-extrabold hover:bg-orange-600 transition text-white shadow-lg shadow-orange-500/20">
+          Sign Up
+        </Link>
       </div>
-      {/* Desktop Auth Buttons */}
-      <div className="hidden md:flex items-center gap-4">
-        <button className="text-sm font-semibold">Sign In</button>
-        <button className="bg-orange-500 px-5 py-2 rounded-lg text-sm font-bold hover:bg-orange-600 transition text-white">Sign Up</button>
-      </div>
-      {/* Mobile Menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex justify-end md:hidden">
-          <div className="w-2/3 max-w-xs bg-white h-full shadow-lg flex flex-col p-6 gap-6 animate-slide-in">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 font-bold text-xl">
-                <div className="bg-blue-500 p-1 rounded-md"><Car size={30} /></div>
+
+      {/* Mobile Toggle */}
+      <button 
+        className="md:hidden p-2 rounded-lg hover:bg-gray-100/10 transition-colors"
+        onClick={() => setMenuOpen(!menuOpen)}
+      >
+        {menuOpen ? <X size={28} /> : <Menu size={28} />}
+      </button>
+
+      {/* Mobile Sidebar Overlay */}
+      <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] md:hidden transition-opacity duration-300 ${menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
+        <div className={`absolute right-0 top-0 h-full w-[280px] bg-white text-gray-900 shadow-2xl transition-transform duration-300 transform ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
+          <div className="p-6 flex flex-col h-full">
+            <div className="flex items-center justify-between mb-10">
+              <span className="font-bold text-xl flex items-center gap-2">
+                <div className="bg-[#003049] p-1 rounded-md text-white"><Car size={20} /></div>
                 AutoShare
-              </div>
-              <button aria-label="Close menu" onClick={() => setMenuOpen(false)} className="focus:outline-none">
-                <X size={28} />
-              </button>
+              </span>
+              <button onClick={closeMenu} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={24} /></button>
             </div>
-            <Link to="/" className="hover:text-orange-400 py-2" onClick={() => setMenuOpen(false)}>Home</Link>
-            <Link to="/services" className="hover:text-orange-400 py-2" onClick={() => setMenuOpen(false)}>Services</Link>
-            <Link to="/about" className="hover:text-orange-400 py-2" onClick={() => setMenuOpen(false)}>About</Link>
-            <Link to="/contact" className="hover:text-orange-400 py-2" onClick={() => setMenuOpen(false)}>Contact Us</Link>
-            <div className="flex flex-col gap-3 mt-6">
-              <button className="text-sm font-semibold w-full text-left">Sign In</button>
-              <button className="bg-orange-500 px-5 py-2 rounded-lg text-sm font-bold hover:bg-orange-600 transition text-white w-full text-left">Sign Up</button>
+
+            <div className="flex flex-col gap-5 font-bold text-lg">
+              <Link to="/" className="hover:text-orange-500" onClick={closeMenu}>Home</Link>
+              <Link to="/services" className="hover:text-orange-500" onClick={closeMenu}>Services</Link>
+              <Link to="/about" className="hover:text-orange-500" onClick={closeMenu}>About</Link>
+              <Link to="/contact" className="hover:text-orange-500" onClick={closeMenu}>Contact Us</Link>
+            </div>
+
+            <div className="mt-auto border-t border-gray-100 pt-8 flex flex-col gap-4">
+              <Link to="/signin" className="w-full text-center py-3 font-bold border border-gray-200 rounded-xl" onClick={closeMenu}>Sign In</Link>
+              <Link to="/signup" className="w-full text-center py-3 font-bold bg-orange-500 text-white rounded-xl" onClick={closeMenu}>Sign Up</Link>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 };
