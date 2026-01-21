@@ -8,10 +8,11 @@ import ContactPage from './pages/Contact';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import SignUpRole from './pages/SignUpRole';
+import SignUpDetails from './pages/SignUpDetails';
 
 const AppRoutes = () => {
   const location = useLocation();
-  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  const normalizedPath = location.pathname.replace(/\/+$/, '/signup/details') || '/';
   const hideChrome = ['/signin', '/signup', '/signup/role'].includes(normalizedPath.toLowerCase());
 
   return (
@@ -26,6 +27,7 @@ const AppRoutes = () => {
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/signup/role" element={<SignUpRole />} />
+          <Route path="/signup/details" element={<SignUpDetails />} />
         </Routes>
       </main>
       {!hideChrome && <Footer />}
