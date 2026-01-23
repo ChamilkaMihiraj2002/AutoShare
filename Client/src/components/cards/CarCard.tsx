@@ -1,7 +1,9 @@
 import React from 'react';
 import { Star, MapPin, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface CarProps {
+  id: number;
   image: string;
   name: string;
   price: number;
@@ -11,7 +13,7 @@ interface CarProps {
   seats: number;
 }
 
-const CarCard: React.FC<CarProps> = ({ image, name, price, rating, reviews, location, seats }) => {
+const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, location, seats }) => {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
       <div className="relative h-48">
@@ -20,7 +22,7 @@ const CarCard: React.FC<CarProps> = ({ image, name, price, rating, reviews, loca
           ${price}/<span className="text-xs font-normal text-gray-500">day</span>
         </div>
       </div>
-      
+
       <div className="p-5">
         <h3 className="text-lg font-bold text-gray-800">{name}</h3>
         <div className="flex items-center gap-1 mt-1 text-sm">
@@ -28,7 +30,7 @@ const CarCard: React.FC<CarProps> = ({ image, name, price, rating, reviews, loca
           <span className="font-medium">{rating}</span>
           <span className="text-gray-400">({reviews} reviews)</span>
         </div>
-        
+
         <div className="flex justify-between items-center mt-4 text-gray-500 text-sm">
           <div className="flex items-center gap-1">
             <MapPin className="w-4 h-4" /> {location}
@@ -37,10 +39,13 @@ const CarCard: React.FC<CarProps> = ({ image, name, price, rating, reviews, loca
             <Users className="w-4 h-4" /> {seats}
           </div>
         </div>
-        
-        <button className="w-full mt-5 bg-[#003049] text-white py-2.5 rounded-lg font-semibold hover:bg-opacity-90 transition">
+
+        <Link
+          to={`/vehicles/${id}`}
+          className="block w-full mt-5 bg-[#003049] text-white py-2.5 rounded-lg font-semibold hover:bg-opacity-90 transition text-center"
+        >
           View Details
-        </button>
+        </Link>
       </div>
     </div>
   );
