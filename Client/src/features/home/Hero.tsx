@@ -1,7 +1,10 @@
-import React from 'react';
+
 import { MapPin, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="relative h-[85vh] flex flex-col items-center justify-center text-center px-4">
       <div className="absolute inset-0 z-0">
@@ -36,7 +39,10 @@ const Hero = () => {
             <input type="date" className="text-sm outline-none w-full" />
           </div>
         </div>
-        <button className="bg-orange-500 text-white px-10 py-4 rounded-xl font-bold hover:bg-orange-600 transition">
+        <button
+          onClick={() => navigate('/search')}
+          className="bg-orange-500 text-white px-10 py-4 rounded-xl font-bold hover:bg-orange-600 transition"
+        >
           Search Vehicles
         </button>
       </div>
