@@ -1,11 +1,15 @@
-import { Car, Menu, X } from 'lucide-react';
+import { Car, Menu, X, User, Settings, LogOut } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { userProfile } from '../../data/mockData';
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === "/";
+  // Mock login check: if we are in user-dashboard or any subpath
+  const isLoggedIn = location.pathname.startsWith('/user-dashboard');
 
   // Prevent scrolling when mobile menu is open
   useEffect(() => {
@@ -17,8 +21,8 @@ const Navbar = () => {
   }, [menuOpen]);
 
   // Dynamic styling based on current page
-  const navBaseClass = isHome 
-    ? "absolute bg-transparent text-white" 
+  const navBaseClass = isHome
+    ? "absolute bg-transparent text-white"
     : "sticky top-0 bg-white/80 backdrop-blur-md text-gray-800 border-b border-gray-100";
 
   const closeMenu = () => setMenuOpen(false);
@@ -41,16 +45,50 @@ const Navbar = () => {
         <Link to="/contact" className="hover:text-orange-500 transition-colors">Contact Us</Link>
       </div>
 
-      {/* Auth Buttons */}
+      {/* Auth Buttons / Profile */}
       <div className="hidden md:flex items-center gap-6">
-        <Link to="/signin" className="text-sm font-bold hover:opacity-80 transition">Sign In</Link>
-        <Link to="/signup" className="bg-orange-500 px-6 py-2.5 rounded-xl text-sm font-extrabold hover:bg-orange-600 transition text-white shadow-lg shadow-orange-500/20">
-          Sign Up
-        </Link>
+        {isLoggedIn ? (
+          <div className="relative">
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="flex items-center gap-2 p-1 pl-3 bg-gray-50 rounded-full hover:bg-gray-100 transition border border-gray-200"
+            >
+              <span className="text-sm font-bold text-gray-700">{userProfile.name}</span>
+              <img src={userProfile.avatar} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showProfileMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 animate-in fade-in slide-in-from-top-2">
+                <div className="px-4 py-3 border-b border-gray-50 mb-2">
+                  <p className="font-bold text-sm text-gray-900">{userProfile.name}</p>
+                  <p className="text-xs text-gray-500">{userProfile.email}</p>
+                </div>
+                <Link to="/user-dashboard" className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                  <User size={16} /> My Profile
+                </Link>
+                <Link to="/user-dashboard/settings" className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                  <Settings size={16} /> Settings
+                </Link>
+                <div className="h-px bg-gray-50 my-2"></div>
+                <Link to="/signin" className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium">
+                  <LogOut size={16} /> Sign Out
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <Link to="/signin" className="text-sm font-bold hover:opacity-80 transition">Sign In</Link>
+            <Link to="/signup" className="bg-orange-500 px-6 py-2.5 rounded-xl text-sm font-extrabold hover:bg-orange-600 transition text-white shadow-lg shadow-orange-500/20">
+              Sign Up
+            </Link>
+          </>
+        )}
       </div>
 
       {/* Mobile Toggle */}
-      <button 
+      <button
         className="md:hidden p-2 rounded-lg hover:bg-gray-100/10 transition-colors"
         onClick={() => setMenuOpen(!menuOpen)}
       >
@@ -74,11 +112,20 @@ const Navbar = () => {
               <Link to="/services" className="hover:text-orange-500" onClick={closeMenu}>Services</Link>
               <Link to="/about" className="hover:text-orange-500" onClick={closeMenu}>About</Link>
               <Link to="/contact" className="hover:text-orange-500" onClick={closeMenu}>Contact Us</Link>
+              {isLoggedIn && (
+                <Link to="/user-dashboard" className="hover:text-orange-500" onClick={closeMenu}>My Dashboard</Link>
+              )}
             </div>
 
             <div className="mt-auto border-t border-gray-100 pt-8 flex flex-col gap-4">
-              <Link to="/signin" className="w-full text-center py-3 font-bold border border-gray-200 rounded-xl" onClick={closeMenu}>Sign In</Link>
-              <Link to="/signup" className="w-full text-center py-3 font-bold bg-orange-500 text-white rounded-xl" onClick={closeMenu}>Sign Up</Link>
+              {isLoggedIn ? (
+                <Link to="/signin" className="w-full text-center py-3 font-bold border border-red-200 text-red-600 rounded-xl" onClick={closeMenu}>Sign Out</Link>
+              ) : (
+                <>
+                  <Link to="/signin" className="w-full text-center py-3 font-bold border border-gray-200 rounded-xl" onClick={closeMenu}>Sign In</Link>
+                  <Link to="/signup" className="w-full text-center py-3 font-bold bg-orange-500 text-white rounded-xl" onClick={closeMenu}>Sign Up</Link>
+                </>
+              )}
             </div>
           </div>
         </div>
