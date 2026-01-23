@@ -1,8 +1,18 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Car, Mail, Lock, ArrowLeft } from 'lucide-react';
 
 const SignIn = () => {
+  const navigate = useNavigate();
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Simulate login delay
+    setTimeout(() => {
+      navigate('/dashboard');
+    }, 500);
+  };
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-white">
       {/* Left Column: Sign In Form */}
@@ -23,14 +33,14 @@ const SignIn = () => {
           <p className="text-gray-500">Sign in to your AutoShare account</p>
         </div>
 
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleLogin}>
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700">Email Address</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input 
-                type="email" 
-                placeholder="your@email.com" 
+              <input
+                type="email"
+                placeholder="your@email.com"
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition"
               />
             </div>
@@ -40,9 +50,9 @@ const SignIn = () => {
             <label className="text-sm font-semibold text-gray-700">Password</label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input 
-                type="password" 
-                placeholder="••••••••" 
+              <input
+                type="password"
+                placeholder="••••••••"
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition"
               />
             </div>
@@ -91,7 +101,7 @@ const SignIn = () => {
         {/* Decorative Background Elements */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-orange-500/5 rounded-full -ml-20 -mb-20 blur-3xl"></div>
-        
+
         <div className="relative z-10 w-full max-w-lg text-center">
           <h2 className="text-3xl font-bold text-white mb-6">Start Your Journey Today</h2>
           <p className="text-gray-400 mb-12 text-sm leading-relaxed">
