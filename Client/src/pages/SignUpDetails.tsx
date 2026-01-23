@@ -60,7 +60,7 @@ const SignUpDetails = () => {
     e.preventDefault();
     if (validateForm()) {
       console.log('Form submitted:', formData);
-      // TODO: Send data to backend
+      navigate('/dashboard');
     }
   };
 
@@ -90,31 +90,13 @@ const SignUpDetails = () => {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Complete Your Profile</h1>
           <p className="text-gray-500">
-            {role === 'renter' 
-              ? 'Tell us more about yourself to get started renting' 
+            {role === 'renter'
+              ? 'Tell us more about yourself to get started renting'
               : 'Provide your details to start listing vehicles'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="your@email.com"
-                className={`w-full pl-12 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition ${
-                  errors.email ? 'border-red-500' : 'border-gray-200'
-                }`}
-              />
-            </div>
-            {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
-          </div>
 
           {/* Phone */}
           <div className="space-y-2">
@@ -127,9 +109,8 @@ const SignUpDetails = () => {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="+94771234567"
-                className={`w-full pl-12 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition ${
-                  errors.phone ? 'border-red-500' : 'border-gray-200'
-                }`}
+                className={`w-full pl-12 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition ${errors.phone ? 'border-red-500' : 'border-gray-200'
+                  }`}
               />
             </div>
             {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
@@ -146,9 +127,8 @@ const SignUpDetails = () => {
                 value={formData.nic}
                 onChange={handleChange}
                 placeholder="123456789V"
-                className={`w-full pl-12 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition ${
-                  errors.nic ? 'border-red-500' : 'border-gray-200'
-                }`}
+                className={`w-full pl-12 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition ${errors.nic ? 'border-red-500' : 'border-gray-200'
+                  }`}
               />
             </div>
             {errors.nic && <p className="text-red-500 text-sm">{errors.nic}</p>}
@@ -165,9 +145,8 @@ const SignUpDetails = () => {
                 value={formData.address}
                 onChange={handleChange}
                 placeholder="123 Main St"
-                className={`w-full pl-12 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition ${
-                  errors.address ? 'border-red-500' : 'border-gray-200'
-                }`}
+                className={`w-full pl-12 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition ${errors.address ? 'border-red-500' : 'border-gray-200'
+                  }`}
               />
             </div>
             {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
@@ -205,7 +184,7 @@ const SignUpDetails = () => {
             {role === 'renter' ? 'Ready to Explore?' : 'Ready to Earn?'}
           </h2>
           <p className="text-gray-400 mb-12 text-sm leading-relaxed">
-            {role === 'renter' 
+            {role === 'renter'
               ? 'Find the perfect vehicle for your next journey. Browse thousands of options and book instantly.'
               : 'Start earning by sharing your vehicle with our community. Set your own prices and availability.'}
           </p>
