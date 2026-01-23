@@ -9,6 +9,12 @@ export interface Car {
   location: string;
   seats: number;
   image: string;
+  type?: string;
+  fuelType?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
 export interface Step {
