@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Car, Mail, MapPin, Phone, FileText, ArrowLeft } from 'lucide-react';
+import { Car, MapPin, Phone, FileText, ArrowLeft } from 'lucide-react';
+import { loginSocial, loginWithEmail, registerSocial, registerWithEmail } from '../lib/api';
+import { getAuthToken, setAuthToken } from '../lib/auth';
+import { signInWithGooglePopup } from '../lib/firebase';
 
 interface SignUpDetailsState {
   role: 'renter' | 'owner';
+  provider: 'email' | 'google';
+  email?: string;
+  password?: string;
 }
 
 const SignUpDetails = () => {
@@ -11,9 +17,11 @@ const SignUpDetails = () => {
   const navigate = useNavigate();
   const state = location.state as SignUpDetailsState;
   const role = state?.role;
+  const provider = state?.provider;
+  const email = state?.email;
+  const password = state?.password;
 
   const [formData, setFormData] = useState({
-    email: '',
     address: '',
     nic: '',
     phone: '',
@@ -21,13 +29,12 @@ const SignUpDetails = () => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
     if (!formData.address || formData.address.trim().length < 5) {
       newErrors.address = 'Please enter a valid address';
     }
@@ -56,20 +63,70 @@ const SignUpDetails = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      console.log('Form submitted:', formData);
-      navigate('/dashboard');
+    setSubmitError('');
+    if (!validateForm() || !role || !provider) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (provider === 'email') {
+        if (!email || !password) {
+          throw new Error('Email sign-up data missing. Please restart sign up.');
+        }
+        await registerWithEmail({
+          email,
+          password,
+          address: formData.address,
+          nic: formData.nic,
+          phone: formData.phone,
+          role,
+        });
+
+        const auth = await loginWithEmail(email, password);
+        if (auth.idToken) {
+          setAuthToken(auth.idToken);
+        }
+      } else {
+        let token = getAuthToken();
+        if (!token) {
+          const googleAuth = await signInWithGooglePopup();
+          token = googleAuth.idToken;
+          setAuthToken(token);
+        }
+        if (!token) {
+          throw new Error('Google authentication token missing.');
+        }
+        await registerSocial(
+          {
+            address: formData.address,
+            nic: formData.nic,
+            phone: formData.phone,
+            role,
+          },
+          token,
+        );
+        const profile = await loginSocial(token);
+        setAuthToken(token);
+        navigate(profile.role === 'owner' ? '/dashboard' : '/user-dashboard');
+        return;
+      }
+      navigate(role === 'owner' ? '/dashboard' : '/user-dashboard');
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Unable to complete sign up');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (!role) {
+  if (!role || !provider || (provider === 'email' && (!email || !password))) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Please select a role first</p>
-          <Link to="/signup/role" className="text-orange-500 font-bold hover:underline">Go back to role selection</Link>
+          <p className="text-gray-600 mb-4">Please complete the sign up steps first</p>
+          <Link to="/signup" className="text-orange-500 font-bold hover:underline">Go to sign up</Link>
         </div>
       </div>
     );
@@ -154,17 +211,34 @@ const SignUpDetails = () => {
 
           {/* Role Display */}
           <div className="p-4 bg-gray-50 rounded-xl">
+            {email && (
+              <p className="text-sm text-gray-600 mb-1">
+                <span className="font-semibold text-gray-700">Email: </span>
+                <span className="font-medium text-[#003049]">{email}</span>
+              </p>
+            )}
+            {provider === 'google' && !email && (
+              <p className="text-sm text-gray-600 mb-1">
+                <span className="font-semibold text-gray-700">Sign-up method: </span>
+                <span className="font-medium text-[#003049]">Google</span>
+              </p>
+            )}
             <p className="text-sm text-gray-600">
               <span className="font-semibold text-gray-700">Selected Role: </span>
               <span className="capitalize font-bold text-[#003049]">{role}</span>
             </p>
           </div>
 
+          {submitError && (
+            <p className="text-sm font-medium text-red-600">{submitError}</p>
+          )}
+
           <button
             type="submit"
-            className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-100"
+            disabled={isSubmitting}
+            className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-100 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Complete Sign Up
+            {isSubmitting ? 'Creating Account...' : 'Complete Sign Up'}
           </button>
         </form>
 

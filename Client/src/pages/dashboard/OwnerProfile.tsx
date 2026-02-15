@@ -1,15 +1,103 @@
-import { useState } from 'react';
-import { currentUser as defaultUser, myVehicles } from '../../data/mockData';
+import { useEffect, useRef, useState } from 'react';
 import { Mail, Phone, MapPin, Calendar, Star, Shield, CheckCircle, Edit2 } from 'lucide-react';
 import EditProfileModal from '../../components/dashboard/EditProfileModal';
+import { getMyProfile, getMyVehicles, updateMyProfile, uploadMyAvatar } from '../../lib/api';
+import { getDisplayNameFromEmail, getRoleLabel, resolveAvatarUrl } from '../../lib/profile';
+
+type ProfileViewModel = {
+    name: string;
+    email: string;
+    phone: string;
+    location: string;
+    joinedDate: string;
+    role: string;
+    avatar: string;
+};
 
 const OwnerProfile = () => {
-    const [user, setUser] = useState(defaultUser);
+    const [user, setUser] = useState<ProfileViewModel | null>(null);
+    const [vehicleCount, setVehicleCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleSaveProfile = (updatedData: typeof defaultUser) => {
-        setUser(updatedData);
-        // In a real app, we would make an API call here
+    useEffect(() => {
+        const loadProfile = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const [profile, vehicles] = await Promise.all([getMyProfile(), getMyVehicles()]);
+                setUser({
+                    name: getDisplayNameFromEmail(profile.email),
+                    email: profile.email,
+                    phone: profile.phone,
+                    location: profile.address,
+                    joinedDate: 'Recently',
+                    role: getRoleLabel(profile.role),
+                    avatar: resolveAvatarUrl(profile.avatar_url),
+                });
+                setVehicleCount(vehicles.length);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to load profile');
+            } finally {
+                setLoading(false);
+            }
+        };
+        void loadProfile();
+    }, []);
+
+    const handleSaveProfile = async (updatedData: ProfileViewModel) => {
+        try {
+            const profile = await updateMyProfile({
+                address: updatedData.location,
+                phone: updatedData.phone,
+            });
+            setUser({
+                name: getDisplayNameFromEmail(profile.email),
+                email: profile.email,
+                phone: profile.phone,
+                location: profile.address,
+                joinedDate: 'Recently',
+                role: getRoleLabel(profile.role),
+                avatar: resolveAvatarUrl(profile.avatar_url),
+            });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to update profile');
+            return;
+        }
+    };
+
+    const handlePickAvatar = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !user) return;
+        setUploadingAvatar(true);
+        setError('');
+        try {
+            const updated = await uploadMyAvatar(file);
+            setUser({
+                ...user,
+                avatar: resolveAvatarUrl(updated.avatar_url),
+            });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to upload profile image');
+        } finally {
+            setUploadingAvatar(false);
+            event.target.value = '';
+        }
+    };
+
+    if (loading) {
+        return <div className="text-gray-500">Loading profile...</div>;
+    }
+
+    if (error || !user) {
+        return <div className="text-red-600">{error || 'Profile not found'}</div>;
     };
 
     return (
@@ -22,6 +110,21 @@ const OwnerProfile = () => {
                             src={user.avatar}
                             alt={user.name}
                             className="w-24 h-24 rounded-full object-cover border-4 border-gray-50 bg-gray-100"
+                        />
+                        <button
+                            type="button"
+                            onClick={handlePickAvatar}
+                            disabled={uploadingAvatar}
+                            className="absolute -bottom-7 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-white border border-gray-200 rounded-full font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {uploadingAvatar ? 'Uploading...' : 'Change'}
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={handleAvatarChange}
+                            className="hidden"
                         />
                         <div className="absolute -bottom-2 -right-2 bg-[#003049] text-white p-1.5 rounded-full border-4 border-white">
                             <Shield size={16} fill="currentColor" />
@@ -97,7 +200,7 @@ const OwnerProfile = () => {
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center">
-                            <div className="text-2xl font-extrabold text-[#003049] mb-1">{myVehicles.length}</div>
+                            <div className="text-2xl font-extrabold text-[#003049] mb-1">{vehicleCount}</div>
                             <div className="text-xs font-bold text-gray-400 uppercase tracking-wide">Vehicles</div>
                         </div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center">

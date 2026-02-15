@@ -1,13 +1,35 @@
-import React from 'react';
 import { User, Car, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
+interface SignUpState {
+  provider: 'email' | 'google';
+  email?: string;
+  password?: string;
+}
 
 const SignUpRole = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const signupState = location.state as SignUpState | undefined;
 
   const handleRoleSelect = (role: 'renter' | 'owner') => {
-    navigate('/signup/details', { state: { role } });
+    if (!signupState?.provider) {
+      navigate('/signup');
+      return;
+    }
+    navigate('/signup/details', { state: { role, ...signupState } });
   };
+
+  if (!signupState?.provider) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Please create an account first.</p>
+          <Link to="/signup" className="text-orange-500 font-bold hover:underline">Go to Sign Up</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-24 min-h-screen bg-[#fcfcfc] flex flex-col items-center">

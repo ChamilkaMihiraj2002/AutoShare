@@ -1,13 +1,40 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Car, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { loginSocial } from '../lib/api';
+import { setAuthToken } from '../lib/auth';
+import { signInWithGooglePopup } from '../lib/firebase';
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = React.useState(false);
 
   const handleCreateAccount = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/signup/role');
+    navigate('/signup/role', { state: { provider: 'email', email, password } });
+  };
+
+  const handleGoogleSignUp = async () => {
+    setError('');
+    setIsGoogleSubmitting(true);
+    try {
+      const { idToken } = await signInWithGooglePopup();
+      setAuthToken(idToken);
+      const profile = await loginSocial(idToken);
+      navigate(profile.role === 'owner' ? '/dashboard' : '/user-dashboard');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to sign up with Google';
+      if (message.toLowerCase().includes('profile not found')) {
+        navigate('/signup/role', { state: { provider: 'google' } });
+        return;
+      }
+      setError(message);
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
   };
 
   return (
@@ -40,7 +67,14 @@ const SignUp = () => {
             <label className="text-sm font-semibold text-gray-700">Email Address</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input type="email" placeholder="your@email.com" className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500" />
+              <input
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500"
+                required
+              />
             </div>
           </div>
 
@@ -48,7 +82,15 @@ const SignUp = () => {
             <label className="text-sm font-semibold text-gray-700">Password</label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input type="password" placeholder="••••••••" className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500" />
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500"
+                required
+                minLength={6}
+              />
             </div>
           </div>
 
@@ -60,11 +102,26 @@ const SignUp = () => {
           <button type="submit" className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-100">
             Create Account
           </button>
+          {error && (
+            <p className="text-sm font-medium text-red-600">{error}</p>
+          )}
         </form>
 
         <div className="mt-8 text-center text-sm font-medium">
           <span className="text-gray-500">Already have an account? </span>
           <Link to="/signin" className="text-[#003049] font-bold hover:underline">Sign In</Link>
+        </div>
+
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={handleGoogleSignUp}
+            disabled={isGoogleSubmitting}
+            className="w-full flex items-center justify-center gap-2 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-bold text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
+            {isGoogleSubmitting ? 'Connecting...' : 'Continue with Google'}
+          </button>
         </div>
       </div>
 

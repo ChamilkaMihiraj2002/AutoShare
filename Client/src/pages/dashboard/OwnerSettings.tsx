@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
 import { User, Bell, Shield, Save } from 'lucide-react';
-import { currentUser } from '../../data/mockData';
+import { getMyProfile, updateMyProfile, uploadMyAvatar } from '../../lib/api';
+import { DEFAULT_AVATAR, getDisplayNameFromEmail, resolveAvatarUrl } from '../../lib/profile';
 
 const OwnerSettings = () => {
     const [activeTab, setActiveTab] = useState('profile');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [avatarSrc, setAvatarSrc] = useState(DEFAULT_AVATAR);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [profileData, setProfileData] = useState({
-        name: currentUser.name,
-        email: currentUser.email,
-        phone: '+1 (555) 123-4567',
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
         bio: 'Automotive enthusiast and experienced host.'
     });
 
@@ -21,13 +28,79 @@ const OwnerSettings = () => {
         setProfileData({ ...profileData, [e.target.name]: e.target.value });
     };
 
+    React.useEffect(() => {
+        const loadProfile = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const profile = await getMyProfile();
+                setProfileData((prev) => ({
+                    ...prev,
+                    name: getDisplayNameFromEmail(profile.email),
+                    email: profile.email,
+                    phone: profile.phone,
+                    address: profile.address,
+                }));
+                setAvatarSrc(resolveAvatarUrl(profile.avatar_url));
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to load profile');
+            } finally {
+                setLoading(false);
+            }
+        };
+        void loadProfile();
+    }, []);
+
+    const handleSaveProfile = async () => {
+        setError('');
+        try {
+            const updated = await updateMyProfile({
+                phone: profileData.phone,
+                address: profileData.address,
+            });
+            setProfileData((prev) => ({
+                ...prev,
+                email: updated.email,
+                phone: updated.phone,
+                address: updated.address,
+            }));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to save profile');
+        }
+    };
+
+    const handlePickAvatar = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        setUploadingPhoto(true);
+        setError('');
+        try {
+            const updated = await uploadMyAvatar(file);
+            setAvatarSrc(resolveAvatarUrl(updated.avatar_url));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to upload photo');
+        } finally {
+            setUploadingPhoto(false);
+            event.target.value = '';
+        }
+    };
+
     const handleNotificationChange = (key: keyof typeof notifications) => {
         setNotifications({ ...notifications, [key]: !notifications[key] });
     };
 
+    if (loading) {
+        return <div className="text-gray-500">Loading settings...</div>;
+    }
+
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-bold text-[#003049]">Settings</h2>
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex border-b border-gray-100">
@@ -55,10 +128,22 @@ const OwnerSettings = () => {
                     {activeTab === 'profile' && (
                         <div className="max-w-2xl space-y-6">
                             <div className="flex items-center gap-4 mb-6">
-                                <img src={currentUser.avatar} alt="Profile" className="w-20 h-20 rounded-full object-cover" />
-                                <button className="text-sm font-medium text-[#003049] border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50">
-                                    Change Photo
+                                <img src={avatarSrc} alt="Profile" className="w-20 h-20 rounded-full object-cover" />
+                                <button
+                                    type="button"
+                                    onClick={handlePickAvatar}
+                                    disabled={uploadingPhoto}
+                                    className="text-sm font-medium text-[#003049] border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {uploadingPhoto ? 'Uploading...' : 'Change Photo'}
                                 </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp"
+                                    onChange={handleAvatarChange}
+                                    className="hidden"
+                                />
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -92,6 +177,16 @@ const OwnerSettings = () => {
                                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
                                     />
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                    <input
+                                        type="text"
+                                        name="address"
+                                        value={profileData.address}
+                                        onChange={handleProfileChange}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                                    />
+                                </div>
                             </div>
 
                             <div>
@@ -105,7 +200,10 @@ const OwnerSettings = () => {
                                 />
                             </div>
 
-                            <button className="flex items-center gap-2 bg-[#003049] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#003049]/90 transition">
+                            <button
+                                onClick={handleSaveProfile}
+                                className="flex items-center gap-2 bg-[#003049] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#003049]/90 transition"
+                            >
                                 <Save size={18} /> Save Changes
                             </button>
                         </div>

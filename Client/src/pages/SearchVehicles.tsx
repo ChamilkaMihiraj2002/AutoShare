@@ -1,15 +1,49 @@
 import React, { useState, useMemo } from 'react';
 import CarCard from '../components/cards/CarCard';
-import { MOCK_VEHICLES } from '../data/mockVehicles';
 import { Filter, X } from 'lucide-react';
+import { getPublicVehicles } from '../lib/api';
+import { getPrimaryVehicleImage } from '../lib/profile';
+import type { Car } from '../types';
 
 const VEHICLE_TYPES = ['Sedan', 'SUV', 'Coupe', 'Hatchback', 'Convertible', 'Truck'];
 const FUEL_TYPES = ['Petrol', 'Diesel', 'Electric', 'Hybrid'];
 
 const SearchVehicles: React.FC = () => {
+    const [vehicles, setVehicles] = React.useState<Car[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
     const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>([]);
     const [showFilters, setShowFilters] = useState(false);
+
+    React.useEffect(() => {
+        const loadVehicles = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                const result = await getPublicVehicles();
+                const mapped = result.map((vehicle) => ({
+                    id: vehicle.vehicleid,
+                    name: `${vehicle.brand} ${vehicle.model}`,
+                    price: vehicle.price,
+                    rating: 4.8,
+                    reviews: 0,
+                    location: vehicle.location,
+                    seats: vehicle.seats ?? 5,
+                    type: vehicle.type,
+                    fuelType: vehicle.fuel,
+                    image: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
+                }));
+                setVehicles(mapped);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to load vehicles');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void loadVehicles();
+    }, []);
 
     const toggleType = (type: string) => {
         setSelectedTypes(prev =>
@@ -28,12 +62,12 @@ const SearchVehicles: React.FC = () => {
     };
 
     const filteredVehicles = useMemo(() => {
-        return MOCK_VEHICLES.filter(car => {
+        return vehicles.filter(car => {
             const typeMatch = selectedTypes.length === 0 || (car.type && selectedTypes.includes(car.type));
             const fuelMatch = selectedFuelTypes.length === 0 || (car.fuelType && selectedFuelTypes.includes(car.fuelType));
             return typeMatch && fuelMatch;
         });
-    }, [selectedTypes, selectedFuelTypes]);
+    }, [vehicles, selectedTypes, selectedFuelTypes]);
 
     const clearFilters = () => {
         setSelectedTypes([]);
@@ -127,7 +161,15 @@ const SearchVehicles: React.FC = () => {
                             </div>
                         </div>
 
-                        {filteredVehicles.length > 0 ? (
+                        {loading ? (
+                            <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-dashed border-gray-300">
+                                <p className="text-gray-500">Loading vehicles...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-dashed border-red-200">
+                                <p className="text-red-600">{error}</p>
+                            </div>
+                        ) : filteredVehicles.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredVehicles.map(car => (
                                     <CarCard key={car.id} {...car} />

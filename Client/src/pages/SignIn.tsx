@@ -1,16 +1,55 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Car, Mail, Lock, ArrowLeft } from 'lucide-react';
+import { loginSocial, getMyProfile, loginWithEmail } from '../lib/api';
+import { setAuthToken } from '../lib/auth';
+import { signInWithGooglePopup } from '../lib/firebase';
 
 const SignIn = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = React.useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate login delay
-    setTimeout(() => {
-      navigate('/dashboard');
-    }, 500);
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const auth = await loginWithEmail(email, password);
+      if (!auth.idToken) {
+        throw new Error('Sign-in succeeded but no auth token was returned.');
+      }
+      setAuthToken(auth.idToken);
+      const profile = await getMyProfile();
+      navigate(profile.role === 'owner' ? '/dashboard' : '/user-dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to sign in');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    setIsGoogleSubmitting(true);
+    try {
+      const { idToken } = await signInWithGooglePopup();
+      setAuthToken(idToken);
+      const profile = await loginSocial(idToken);
+      navigate(profile.role === 'owner' ? '/dashboard' : '/user-dashboard');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to sign in with Google';
+      if (message.toLowerCase().includes('profile not found')) {
+        navigate('/signup/role', { state: { provider: 'google' } });
+        return;
+      }
+      setError(message);
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
   };
 
   return (
@@ -41,7 +80,10 @@ const SignIn = () => {
               <input
                 type="email"
                 placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition"
+                required
               />
             </div>
           </div>
@@ -53,10 +95,17 @@ const SignIn = () => {
               <input
                 type="password"
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition"
+                required
               />
             </div>
           </div>
+
+          {error && (
+            <p className="text-sm font-medium text-red-600">{error}</p>
+          )}
 
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 cursor-pointer text-gray-600 font-medium">
@@ -66,14 +115,17 @@ const SignIn = () => {
             <button type="button" className="text-[#003049] font-bold hover:underline">Forgot password?</button>
           </div>
 
-          <button className="w-full bg-[#003049] text-white py-4 rounded-xl font-bold hover:bg-[#002538] transition shadow-lg">
-            Sign In
+          <button
+            disabled={isSubmitting}
+            className="w-full bg-[#003049] text-white py-4 rounded-xl font-bold hover:bg-[#002538] transition shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 
         <div className="mt-8 text-center text-sm font-medium">
           <span className="text-gray-500">Don't have an account? </span>
-          <button className="text-[#003049] font-bold hover:underline">Sign Up</button>
+          <Link to="/signup" className="text-[#003049] font-bold hover:underline">Sign Up</Link>
         </div>
 
         {/* Social Logins */}
@@ -84,9 +136,14 @@ const SignIn = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <button className="flex items-center justify-center gap-2 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-bold text-gray-700">
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isGoogleSubmitting}
+              className="flex items-center justify-center gap-2 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-bold text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
-              Google
+              {isGoogleSubmitting ? 'Connecting...' : 'Google'}
             </button>
             <button className="flex items-center justify-center gap-2 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-bold text-gray-700">
               <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" className="w-5 h-5" alt="Facebook" />
