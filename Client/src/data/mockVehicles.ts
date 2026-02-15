@@ -2,7 +2,7 @@ import type { Car } from '../types';
 
 export const MOCK_VEHICLES: Car[] = [
     {
-        id: 1,
+        id: '1',
         name: 'Tesla Model 3',
         price: 89,
         rating: 4.9,
@@ -15,7 +15,7 @@ export const MOCK_VEHICLES: Car[] = [
         coordinates: { lat: 7.0840, lng: 79.8977 } // Ja-Ela (Jada?)
     },
     {
-        id: 2,
+        id: '2',
         name: 'BMW X5 SUV',
         price: 125,
         rating: 4.8,
@@ -28,7 +28,7 @@ export const MOCK_VEHICLES: Car[] = [
         coordinates: { lat: 7.2008, lng: 79.8737 } // Negombo
     },
     {
-        id: 3,
+        id: '3',
         name: 'Porsche 911',
         price: 299,
         rating: 5.0,
@@ -41,7 +41,7 @@ export const MOCK_VEHICLES: Car[] = [
         coordinates: { lat: 6.7881, lng: 79.8795 } // Moratuwa
     },
     {
-        id: 4,
+        id: '4',
         name: 'Mercedes C-Class',
         price: 95,
         rating: 4.7,
@@ -54,7 +54,7 @@ export const MOCK_VEHICLES: Car[] = [
         coordinates: { lat: 7.7490, lng: 80.1228 } // Nikaweratiya
     },
     {
-        id: 5,
+        id: '5',
         name: 'Toyota Land Cruiser',
         price: 150,
         rating: 4.9,
@@ -67,7 +67,7 @@ export const MOCK_VEHICLES: Car[] = [
         coordinates: { lat: 6.9271, lng: 79.8612 } // Colombo
     },
     {
-        id: 6,
+        id: '6',
         name: 'Honda Civic',
         price: 55,
         rating: 4.6,
@@ -80,7 +80,7 @@ export const MOCK_VEHICLES: Car[] = [
         coordinates: { lat: 7.2906, lng: 80.6337 } // Kandy
     },
     {
-        id: 7,
+        id: '7',
         name: 'Ford Mustang',
         price: 130,
         rating: 4.8,
@@ -93,7 +93,7 @@ export const MOCK_VEHICLES: Car[] = [
         coordinates: { lat: 6.0535, lng: 80.2210 } // Galle
     },
     {
-        id: 8,
+        id: '8',
         name: 'Nissan Leaf',
         price: 60,
         rating: 4.5,

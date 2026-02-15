@@ -13,7 +13,7 @@ export const currentUser = {
 export const dashboardStats = [
     {
         label: 'Total Revenue',
-        value: '$8,877',
+        value: 'Rs 8,877',
         subtext: '+12% from last month',
         subtextClass: 'text-green-600',
         icon: DollarSign
@@ -52,7 +52,7 @@ export const pendingRequests = [
         },
         vehicle: "2023 Tesla Model 3",
         dates: "Jan 18 - Jan 22",
-        amount: "$356",
+        amount: "Rs 356",
         status: "Pending"
     },
     {
@@ -65,7 +65,7 @@ export const pendingRequests = [
         },
         vehicle: "2022 BMW X5",
         dates: "Jan 20 - Jan 23",
-        amount: "$387",
+        amount: "Rs 387",
         status: "Pending"
     }
 ];
@@ -95,7 +95,7 @@ export const recentActivity = [
         id: 3,
         type: "payment",
         title: "Payment received",
-        description: "$387 for completed booking",
+        description: "Rs 387 for completed booking",
         time: "1d ago",
         icon: DollarSign,
         iconColor: "text-orange-600",
@@ -112,7 +112,7 @@ export const myVehicles = [
         image: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
         rating: 4.9,
         trips: 12,
-        earned: "$1.2k",
+        earned: "Rs 1.2k",
         status: "Active"
     },
     {
@@ -123,22 +123,22 @@ export const myVehicles = [
         image: "https://images.unsplash.com/photo-1555215696-b9776f1783e7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
         rating: 4.8,
         trips: 8,
-        earned: "$850",
+        earned: "Rs 850",
         status: "Active"
     }
 ];
 
 export const earningsData = {
     summary: {
-        thisMonth: { value: "$355", change: "15% from last month" },
-        lastMonth: { value: "$310", bookings: "23" },
-        allTime: { value: "$8,877", bookings: "73" }
+        thisMonth: { value: "Rs 355", change: "15% from last month" },
+        lastMonth: { value: "Rs 310", bookings: "23" },
+        allTime: { value: "Rs 8,877", bookings: "73" }
     },
     transactions: [
-        { id: 1, car: "Tesla Model 3", user: "John Smith", date: "Jan 15, 2026", amount: "+$356", status: "Completed" },
-        { id: 2, car: "BMW X5", user: "Emma Wilson", date: "Jan 14, 2026", amount: "+$356", status: "Completed" },
-        { id: 3, car: "Mercedes GLE", user: "Michael Brown", date: "Jan 12, 2026", amount: "+$356", status: "Completed" },
-        { id: 4, car: "Tesla Model 3", user: "Sarah Davis", date: "Jan 10, 2026", amount: "+$356", status: "Completed" },
+        { id: 1, car: "Tesla Model 3", user: "John Smith", date: "Jan 15, 2026", amount: "+Rs 356", status: "Completed" },
+        { id: 2, car: "BMW X5", user: "Emma Wilson", date: "Jan 14, 2026", amount: "+Rs 356", status: "Completed" },
+        { id: 3, car: "Mercedes GLE", user: "Michael Brown", date: "Jan 12, 2026", amount: "+Rs 356", status: "Completed" },
+        { id: 4, car: "Tesla Model 3", user: "Sarah Davis", date: "Jan 10, 2026", amount: "+Rs 356", status: "Completed" },
     ]
 };
 
@@ -170,7 +170,7 @@ export const userBookings = [
         },
         dates: "Jan 25 - Jan 28, 2026",
         status: "Upcoming",
-        total: "$450",
+        total: "Rs 450",
         bookingId: "#BK-2026-001"
     },
     {
@@ -182,7 +182,7 @@ export const userBookings = [
         },
         dates: "Dec 10 - Dec 15, 2025",
         status: "Completed",
-        total: "$620",
+        total: "Rs 620",
         bookingId: "#BK-2025-089"
     },
     {
@@ -194,7 +194,7 @@ export const userBookings = [
         },
         dates: "Nov 05 - Nov 08, 2025",
         status: "Cancelled",
-        total: "$380",
+        total: "Rs 380",
         bookingId: "#BK-2025-055"
     }
 ];
@@ -204,7 +204,7 @@ export const savedVehicles = [
         id: 1,
         name: "Porsche 911",
         type: "Sports",
-        price: "$250/day",
+        price: "Rs 250/day",
         rating: 5.0,
         trips: 15,
         image: "https://images.unsplash.com/photo-1503376763036-066120622c74?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
@@ -213,7 +213,7 @@ export const savedVehicles = [
         id: 2,
         name: "Range Rover Sport",
         type: "SUV",
-        price: "$180/day",
+        price: "Rs 180/day",
         rating: 4.8,
         trips: 22,
         image: "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
@@ -222,7 +222,7 @@ export const savedVehicles = [
         id: 3,
         name: "Audi RS7",
         type: "Luxury",
-        price: "$220/day",
+        price: "Rs 220/day",
         rating: 4.9,
         trips: 10,
         image: "https://images.unsplash.com/photo-1617788138017-80ad40651399?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
