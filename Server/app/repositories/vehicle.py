@@ -1,5 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List, Any
+from bson import ObjectId
+from bson.errors import InvalidId
 from app.repositories.base import BaseRepository
 
 VEHICLE_COLLECTION = "vehicles"
@@ -11,6 +13,17 @@ def _stringify_id(doc: dict) -> dict:
     if "_id" in doc and not isinstance(doc["_id"], str):
         doc["_id"] = str(doc["_id"])
     return doc
+
+
+def _to_object_id(value: Any) -> ObjectId | None:
+    if isinstance(value, ObjectId):
+        return value
+    if not isinstance(value, str):
+        return None
+    try:
+        return ObjectId(value)
+    except (InvalidId, TypeError):
+        return None
 
 
 class VehicleRepository(BaseRepository):
@@ -31,6 +44,10 @@ class VehicleRepository(BaseRepository):
 
     async def get_vehicle_by_id(self, *, vehicle_id: Any) -> dict | None:
         doc = await self.get_by_id(vehicle_id)
+        if doc is None:
+            oid = _to_object_id(vehicle_id)
+            if oid is not None:
+                doc = await self.get_by_id(oid)
         return _stringify_id(doc)
 
     async def list_vehicles_by_owner(self, *, owner_uid: str) -> List[dict]:
@@ -46,15 +63,28 @@ class VehicleRepository(BaseRepository):
         update_fields.pop("_id", None)
         update_fields.pop("vehicleid", None)
 
-        # Restrict update to owner
+        # Restrict update to owner; support both string and ObjectId ids.
         result = await self.collection.update_one({"_id": vehicle_id, "owner_uid": owner_uid}, {"$set": update_fields})
         if result.matched_count == 0:
+            oid = _to_object_id(vehicle_id)
+            if oid is not None:
+                result = await self.collection.update_one({"_id": oid, "owner_uid": owner_uid}, {"$set": update_fields})
+                if result.matched_count == 0:
+                    return None
+                updated = await self.get_by_id(oid)
+                return _stringify_id(updated)
             return None
         updated = await self.get_by_id(vehicle_id)
         return _stringify_id(updated)
 
     async def delete_vehicle(self, *, owner_uid: str, vehicle_id: Any) -> bool:
         result = await self.collection.delete_one({"_id": vehicle_id, "owner_uid": owner_uid})
+        if result.deleted_count == 1:
+            return True
+        oid = _to_object_id(vehicle_id)
+        if oid is None:
+            return False
+        result = await self.collection.delete_one({"_id": oid, "owner_uid": owner_uid})
         return result.deleted_count == 1
 
 
