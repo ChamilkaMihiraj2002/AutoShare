@@ -1,4 +1,3 @@
-import React from 'react';
 import { Target, Eye, Award } from 'lucide-react';
 
 const AboutPage = () => {

@@ -1,8 +1,9 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import DashboardNavbar from '../components/dashboard/DashboardNavbar';
 import { Plus } from 'lucide-react';
 
 const DashboardLayout = () => {
+    const navigate = useNavigate();
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -15,7 +16,10 @@ const DashboardLayout = () => {
                         <h1 className="text-2xl font-bold text-[#003049]">Owner Dashboard</h1>
                         <p className="text-gray-500 mt-1">Manage your vehicles and track earnings</p>
                     </div>
-                    <button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-lg shadow-orange-500/20">
+                    <button
+                        onClick={() => navigate('/dashboard/vehicles?new=1')}
+                        className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-lg shadow-orange-500/20"
+                    >
                         <Plus size={20} />
                         Add New Vehicle
                     </button>
