@@ -7,6 +7,11 @@ class RentBase(BaseModel):
     vehicle_id: str
     start_date: datetime
     end_date: datetime
+    pickup_option: str = "self_pickup"
+    delivery_address: Optional[str] = None
+    insurance_plan: str = "basic"
+    child_seat_count: int = 0
+    note: Optional[str] = None
 
 
 class RentCreate(RentBase):
@@ -21,6 +26,11 @@ class RentCreate(RentBase):
 class RentUpdate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    pickup_option: Optional[str] = None
+    delivery_address: Optional[str] = None
+    insurance_plan: Optional[str] = None
+    child_seat_count: Optional[int] = None
+    note: Optional[str] = None
 
     @model_validator(mode="after")
     def check_at_least_one(cls, values):
@@ -44,5 +54,10 @@ class Rent(RentBase):
                 "vehicle_id": "veh_12345",
                 "start_date": "2026-01-07T09:00:00Z",
                 "end_date": "2026-01-08T09:00:00Z",
+                "pickup_option": "self_pickup",
+                "delivery_address": None,
+                "insurance_plan": "basic",
+                "child_seat_count": 0,
+                "note": "Please keep fuel full.",
             }
         }
