@@ -12,6 +12,7 @@ import SignUpDetails from './pages/SignUpDetails';
 import DashboardLayout from './layouts/DashboardLayout';
 import OwnerDashboard from './pages/dashboard/OwnerDashboard';
 import MyVehicles from './pages/dashboard/MyVehicles';
+import VehicleManage from './pages/dashboard/VehicleManage';
 import BookingRequests from './pages/dashboard/BookingRequests';
 import Earnings from './pages/dashboard/Earnings';
 import OwnerProfile from './pages/dashboard/OwnerProfile';
@@ -56,6 +57,7 @@ const AppRoutes = () => {
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<OwnerDashboard />} />
             <Route path="vehicles" element={<MyVehicles />} />
+            <Route path="vehicles/:id" element={<VehicleManage />} />
             <Route path="requests" element={<BookingRequests />} />
             <Route path="earnings" element={<Earnings />} />
             <Route path="profile" element={<OwnerProfile />} />

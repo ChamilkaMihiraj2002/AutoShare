@@ -1,9 +1,10 @@
 import React from 'react';
 import { Star, MapPin, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatLkr } from '../../lib/currency';
 
 interface CarProps {
-  id: number;
+  id: string;
   image: string;
   name: string;
   price: number;
@@ -19,7 +20,7 @@ const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, 
       <div className="relative h-48">
         <img src={image} alt={name} className="w-full h-full object-cover" />
         <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-sm text-sm font-bold">
-          ${price}/<span className="text-xs font-normal text-gray-500">day</span>
+          {formatLkr(price)}/<span className="text-xs font-normal text-gray-500">day</span>
         </div>
       </div>
 
@@ -42,6 +43,18 @@ const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, 
 
         <Link
           to={`/vehicles/${id}`}
+          state={{
+            vehicle: {
+              id,
+              image,
+              name,
+              price,
+              rating,
+              reviews,
+              location,
+              seats,
+            },
+          }}
           className="block w-full mt-5 bg-[#003049] text-white py-2.5 rounded-lg font-semibold hover:bg-opacity-90 transition text-center"
         >
           View Details
