@@ -1,12 +1,61 @@
 import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar } from 'lucide-react';
+import LoadingScreen from '../components/common/LoadingScreen';
+import { getPublicVehicleById } from '../lib/api';
+import { getPrimaryVehicleImage } from '../lib/profile';
+import { formatLkr } from '../lib/currency';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
+import type { Car } from '../types';
 
 const VehicleDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const vehicle = MOCK_VEHICLES.find(v => v.id === Number(id));
+    const location = useLocation();
+    const routeVehicle = (location.state as { vehicle?: Car } | null)?.vehicle ?? null;
+    const [vehicle, setVehicle] = React.useState<Car | null>(routeVehicle);
+    const [isLoading, setIsLoading] = React.useState(!routeVehicle);
+    const [error, setError] = React.useState('');
+
+    React.useEffect(() => {
+        const loadVehicle = async () => {
+            if (!id) {
+                setIsLoading(false);
+                return;
+            }
+            setIsLoading(true);
+            setError('');
+            try {
+                const result = await getPublicVehicleById(id);
+                if (result) {
+                    setVehicle({
+                        id: result.vehicleid,
+                        name: `${result.brand} ${result.model}`,
+                        price: result.price,
+                        rating: 4.8,
+                        reviews: 0,
+                        location: result.location,
+                        seats: result.seats ?? 5,
+                        type: result.type,
+                        fuelType: result.fuel,
+                        image: getPrimaryVehicleImage(result.image_urls, result.image_url),
+                    });
+                    return;
+                }
+
+                const mockVehicle = MOCK_VEHICLES.find((entry) => entry.id === id);
+                setVehicle(mockVehicle || null);
+            } catch (err) {
+                if (!routeVehicle) {
+                    setError(err instanceof Error ? err.message : 'Failed to load vehicle');
+                }
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        void loadVehicle();
+    }, [id, routeVehicle]);
 
     // Mock additional details not in the basic type
     const specifications = {
@@ -18,6 +67,14 @@ const VehicleDetails: React.FC = () => {
 
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+
+    if (isLoading) {
+        return <LoadingScreen message="Loading vehicle..." />;
+    }
+
+    if (error) {
+        return <div className="pt-24 text-center text-red-600">{error}</div>;
+    }
 
     if (!vehicle) {
         return <div className="pt-24 text-center">Vehicle not found</div>;
@@ -155,7 +212,7 @@ const VehicleDetails: React.FC = () => {
                     <div className="lg:col-span-1">
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-24">
                             <div className="flex justify-between items-baseline mb-6">
-                                <div className="text-2xl font-bold text-gray-900">${vehicle.price} <span className="text-base font-normal text-gray-500">per day</span></div>
+                                <div className="text-2xl font-bold text-gray-900">{formatLkr(vehicle.price)} <span className="text-base font-normal text-gray-500">per day</span></div>
                             </div>
 
                             <div className="space-y-4 mb-6">
@@ -182,16 +239,16 @@ const VehicleDetails: React.FC = () => {
                             {days > 0 && (
                                 <div className="space-y-3 mb-6 pt-4 border-t border-gray-100">
                                     <div className="flex justify-between text-gray-600">
-                                        <span>${vehicle.price} × {days} days</span>
-                                        <span>${days * vehicle.price}</span>
+                                        <span>{formatLkr(vehicle.price)} × {days} days</span>
+                                        <span>{formatLkr(days * vehicle.price)}</span>
                                     </div>
                                     <div className="flex justify-between text-gray-600">
                                         <span>Service fee</span>
-                                        <span>${serviceFee}</span>
+                                        <span>{formatLkr(serviceFee)}</span>
                                     </div>
                                     <div className="flex justify-between font-bold text-gray-900 pt-3 border-t border-gray-100">
                                         <span>Total</span>
-                                        <span>${total}</span>
+                                        <span>{formatLkr(total)}</span>
                                     </div>
                                 </div>
                             )}

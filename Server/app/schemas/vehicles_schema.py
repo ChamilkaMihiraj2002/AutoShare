@@ -12,6 +12,9 @@ class VehicleBase(BaseModel):
     brand: str
     year: int
     model: str
+    seats: int = 5
+    image_urls: list[str] = Field(default_factory=list)
+    image_url: Optional[str] = None
 
 
 class VehicleCreate(VehicleBase):
@@ -33,6 +36,9 @@ class VehicleUpdate(BaseModel):
     brand: Optional[str] = None
     year: Optional[int] = None
     model: Optional[str] = None
+    seats: Optional[int] = None
+    image_urls: Optional[list[str]] = None
+    image_url: Optional[str] = None
 
     @model_validator(mode="after")
     def check_at_least_one(cls, values):
@@ -59,6 +65,12 @@ class Vehicle(VehicleBase):
                 "location": "Colombo",
                 "brand": "Toyota",
                 "year": 2020,
-                "model": "Corolla"
+                "model": "Corolla",
+                "seats": 5,
+                "image_urls": [
+                    "/uploads/vehicles/example1.jpg",
+                    "/uploads/vehicles/example2.jpg",
+                ],
+                "image_url": "/uploads/vehicles/example.jpg",
             }
         }
