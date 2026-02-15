@@ -1,7 +1,10 @@
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Load environment variables from a local .env file (if present)
 # This ensures `MONGODB_URL` and other env vars used during startup are available
@@ -38,6 +41,21 @@ app = FastAPI(
     docs_url="/",
     lifespan=lifespan  # Use the new lifespan manager
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+uploads_dir = Path(__file__).resolve().parents[1] / "uploads"
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 # --- Include Routers ---
 app.include_router(general.router)

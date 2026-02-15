@@ -47,6 +47,7 @@ async def register_email_user(
 
     # B. Prepare profile data
     profile_data = UserProfileBase(
+        full_name=payload.full_name,
         address=payload.address,
         nic=payload.nic,
         phone=payload.phone,

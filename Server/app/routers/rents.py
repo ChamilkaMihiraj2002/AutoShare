@@ -9,6 +9,7 @@ from app.repositories.rent import (
     create_rent,
     get_rent_by_id,
     list_rents_by_renter,
+    list_rents_by_owner,
     update_rent,
     delete_rent,
 )
@@ -40,6 +41,16 @@ async def list_my_rents(
 ):
     renter_uid = decoded_token.get("uid")
     docs = await list_rents_by_renter(db=db, renter_uid=renter_uid)
+    return docs
+
+
+@router.get("/owner", response_model=List[Rent])
+async def list_owner_rents(
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    owner_uid = decoded_token.get("uid")
+    docs = await list_rents_by_owner(db=db, owner_uid=owner_uid)
     return docs
 
 

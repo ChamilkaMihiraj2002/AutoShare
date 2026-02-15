@@ -7,3 +7,4 @@ motor[srv]
 python-dotenv
 pytest
 pytest-asyncio
+python-multipart

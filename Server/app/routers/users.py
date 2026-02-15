@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadFile, File
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Import our new dependencies and schemas
@@ -9,12 +12,17 @@ from app.repositories.user import (
     update_user_profile_by_uid,
     delete_user_profile_by_uid,
 )
-from app.schemas import UserProfile, UserProfileUpdate
+from app.schemas import UserProfile, UserProfileUpdate, PublicUserProfile
 
 router = APIRouter(
     prefix="/users",
     tags=["Users"]
 )
+
+UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024
+ALLOWED_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 
 @router.get("/me", response_model=UserProfile)
 async def read_current_user(
@@ -64,6 +72,22 @@ async def update_current_user(
     return updated
 
 
+@router.get("/{uid}", response_model=PublicUserProfile)
+async def read_user_by_uid(
+    uid: str,
+    _: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    profile = await get_user_profile_by_uid(db, uid=uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    return {
+        "uid": profile.get("_id", uid),
+        "full_name": profile.get("full_name"),
+        "email": profile.get("email"),
+    }
+
+
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_current_user(
     decoded_token: dict = Depends(get_current_user),
@@ -78,3 +102,35 @@ async def delete_current_user(
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/me/avatar", response_model=UserProfile)
+async def upload_avatar(
+    avatar: UploadFile = File(...),
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    content_type = (avatar.content_type or "").lower()
+    extension = ALLOWED_IMAGE_TYPES.get(content_type)
+    if not extension:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported image type. Use JPG, PNG, or WEBP.",
+        )
+
+    content = await avatar.read()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty.")
+    if len(content) > MAX_AVATAR_SIZE_BYTES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image exceeds 5MB limit.")
+
+    user_uid = decoded_token.get("uid")
+    filename = f"{user_uid}_{uuid4().hex}{extension}"
+    destination = UPLOAD_DIR / filename
+    destination.write_bytes(content)
+
+    avatar_url = f"/uploads/{filename}"
+    updated = await update_user_profile_by_uid(db, uid=user_uid, update_data={"avatar_url": avatar_url})
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    return updated

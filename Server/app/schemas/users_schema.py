@@ -9,6 +9,7 @@ class UserProfileBase(BaseModel):
     Data required to create a profile.
     Shared by both Email registration and Google registration.
     """
+    full_name: str | None = None
     address: str
     nic: str
     phone: str
@@ -18,6 +19,7 @@ class UserProfileUpdate(BaseModel):
     """
     For updating profile fields later (PATCH /users/me).
     """
+    full_name: str | None = None
     address: str | None = None
     nic: str | None = None
     phone: str | None = None
@@ -35,6 +37,7 @@ class UserProfile(UserProfileBase):
     """
     uid: str = Field(alias="_id") # Maps MongoDB '_id' to 'uid'
     email: EmailStr
+    avatar_url: str | None = None
 
     class Config:
         populate_by_name = True
@@ -42,12 +45,20 @@ class UserProfile(UserProfileBase):
             "example": {
                 "uid": "FirebaseUID_12345",
                 "email": "user@example.com",
+                "full_name": "John Doe",
                 "address": "123 Main St",
                 "nic": "123456789V",
                 "phone": "+94771234567",
-                "role": "user"
+                "role": "user",
+                "avatar_url": "/uploads/example.jpg",
             }
         }
+
+
+class PublicUserProfile(BaseModel):
+    uid: str
+    full_name: str | None = None
+    email: EmailStr
 
 # ==========================================
 # 2. REGISTRATION REQUESTS
@@ -61,6 +72,7 @@ class RegisterEmailRequest(BaseModel):
     email: EmailStr
     password: str
     # Profile Data
+    full_name: str | None = None
     address: str
     nic: str
     phone: str
