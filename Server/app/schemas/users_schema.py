@@ -1,4 +1,47 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from enum import Enum
+from typing import Any
+
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, model_validator
+
+class UserRole(str, Enum):
+    USER = "user"
+    VEHICLE_OWNER = "vehicle_owner"
+    RENTER = "renter"
+
+
+DEFAULT_ROLE = UserRole.USER
+LEGACY_ROLE_ALIASES = {
+    "owner": UserRole.VEHICLE_OWNER,
+}
+
+
+def normalize_roles(value: Any) -> list[UserRole]:
+    if value is None:
+        return [DEFAULT_ROLE]
+
+    if isinstance(value, (str, UserRole)):
+        values = [value]
+    elif isinstance(value, (list, tuple, set)):
+        values = list(value)
+    else:
+        raise ValueError("Role must be a string or a list of strings")
+
+    normalized: list[UserRole] = []
+    for item in values:
+        if isinstance(item, UserRole):
+            role = item
+        elif isinstance(item, str):
+            raw_role = item.strip()
+            if not raw_role:
+                continue
+            role = LEGACY_ROLE_ALIASES.get(raw_role, UserRole(raw_role))
+        else:
+            raise ValueError("Each role must be a string")
+
+        if role not in normalized:
+            normalized.append(role)
+
+    return normalized or [DEFAULT_ROLE]
 
 # ==========================================
 # 1. SHARED PROFILE MODELS
@@ -13,7 +56,24 @@ class UserProfileBase(BaseModel):
     address: str
     nic: str
     phone: str
-    role: str = "user"
+    roles: list[UserRole] = Field(
+        default_factory=lambda: [DEFAULT_ROLE],
+        validation_alias=AliasChoices("roles", "role"),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_role_inputs(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        if "roles" in normalized or "role" in normalized:
+            normalized["roles"] = normalize_roles(normalized.get("roles", normalized.get("role")))
+        else:
+            normalized["roles"] = [DEFAULT_ROLE]
+        normalized.pop("role", None)
+        return normalized
 
 class UserProfileUpdate(BaseModel):
     """
@@ -23,6 +83,22 @@ class UserProfileUpdate(BaseModel):
     address: str | None = None
     nic: str | None = None
     phone: str | None = None
+    roles: list[UserRole] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("roles", "role"),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_role_inputs(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        if "roles" in normalized or "role" in normalized:
+            normalized["roles"] = normalize_roles(normalized.get("roles", normalized.get("role")))
+        normalized.pop("role", None)
+        return normalized
 
     @model_validator(mode='after')
     def check_at_least_one_value(self) -> 'UserProfileUpdate':
@@ -39,9 +115,9 @@ class UserProfile(UserProfileBase):
     email: EmailStr
     avatar_url: str | None = None
 
-    class Config:
-        populate_by_name = True
-        json_schema_extra = {
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
             "example": {
                 "uid": "FirebaseUID_12345",
                 "email": "user@example.com",
@@ -49,10 +125,11 @@ class UserProfile(UserProfileBase):
                 "address": "123 Main St",
                 "nic": "123456789V",
                 "phone": "+94771234567",
-                "role": "user",
+                "roles": [UserRole.VEHICLE_OWNER, UserRole.RENTER],
                 "avatar_url": "/uploads/example.jpg",
             }
-        }
+        },
+    )
 
 
 class PublicUserProfile(BaseModel):
@@ -76,7 +153,24 @@ class RegisterEmailRequest(BaseModel):
     address: str
     nic: str
     phone: str
-    role: str | None = "user"
+    roles: list[UserRole] = Field(
+        default_factory=lambda: [DEFAULT_ROLE],
+        validation_alias=AliasChoices("roles", "role"),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_role_inputs(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        if "roles" in normalized or "role" in normalized:
+            normalized["roles"] = normalize_roles(normalized.get("roles", normalized.get("role")))
+        else:
+            normalized["roles"] = [DEFAULT_ROLE]
+        normalized.pop("role", None)
+        return normalized
 
 class SocialProfileRequest(UserProfileBase):
     """
