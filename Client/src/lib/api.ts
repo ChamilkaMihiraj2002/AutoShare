@@ -1,5 +1,6 @@
-import type { AuthResponse, PublicUserProfile, RentApi, UserProfile, VehicleApi } from '../types';
+import type { AuthResponse, PublicUserProfile, RentApi, UserProfile, UserRole, VehicleApi } from '../types';
 import { clearAuthToken, getAuthToken } from './auth';
+import { notifyProfileUpdated } from './profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -79,7 +80,7 @@ export async function registerWithEmail(payload: {
   address: string;
   nic: string;
   phone: string;
-  role: string;
+  roles: UserRole[];
 }): Promise<void> {
   await apiRequest('/auth/register/email', 'POST', payload);
 }
@@ -97,8 +98,11 @@ export async function updateMyProfile(payload: {
   address?: string;
   nic?: string;
   phone?: string;
+  roles?: UserRole[];
 }): Promise<UserProfile> {
-  return apiRequest<UserProfile>('/users/me', 'PATCH', payload, true);
+  const profile = await apiRequest<UserProfile>('/users/me', 'PATCH', payload, true);
+  notifyProfileUpdated(profile);
+  return profile;
 }
 
 export async function loginSocial(idToken: string): Promise<UserProfile> {
@@ -110,7 +114,7 @@ export async function registerSocial(
     address: string;
     nic: string;
     phone: string;
-    role: string;
+    roles: UserRole[];
   },
   idToken?: string,
 ): Promise<void> {
@@ -301,5 +305,7 @@ export async function uploadMyAvatar(file: File): Promise<UserProfile> {
     throw new Error(errorMessage);
   }
 
-  return response.json() as Promise<UserProfile>;
+  const profile = await response.json() as UserProfile;
+  notifyProfileUpdated(profile);
+  return profile;
 }

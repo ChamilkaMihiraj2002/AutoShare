@@ -35,7 +35,7 @@ const OwnerProfile = () => {
                     phone: profile.phone,
                     location: profile.address,
                     joinedDate: 'Recently',
-                    role: getRoleLabel(profile.role),
+                    role: getRoleLabel(profile.roles),
                     avatar: resolveAvatarUrl(profile.avatar_url),
                 });
                 setVehicleCount(vehicles.length);
@@ -60,7 +60,7 @@ const OwnerProfile = () => {
                 phone: profile.phone,
                 location: profile.address,
                 joinedDate: 'Recently',
-                role: getRoleLabel(profile.role),
+                role: getRoleLabel(profile.roles),
                 avatar: resolveAvatarUrl(profile.avatar_url),
             });
         } catch (err) {
