@@ -53,7 +53,7 @@ const UserProfile = () => {
     }
 
     const name = getProfileDisplayName(profile.full_name, profile.email);
-    const roleLabel = getRoleLabel(profile.role);
+    const roleLabel = getRoleLabel(profile.roles);
     const avatarSrc = resolveAvatarUrl(profile.avatar_url);
 
     const handlePickFile = () => {
