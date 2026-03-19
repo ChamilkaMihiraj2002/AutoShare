@@ -36,6 +36,8 @@ export interface AuthResponse {
   idToken?: string | null;
 }
 
+export type UserRole = 'user' | 'vehicle_owner' | 'renter';
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -43,7 +45,7 @@ export interface UserProfile {
   address: string;
   nic: string;
   phone: string;
-  role: string;
+  roles: UserRole[];
   avatar_url?: string | null;
 }
 

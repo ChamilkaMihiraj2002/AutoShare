@@ -3,26 +3,44 @@ import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { clearAuthToken } from '../../lib/auth';
 import { getMyProfile } from '../../lib/api';
-import { DEFAULT_AVATAR, getProfileDisplayName, getRoleLabel, resolveAvatarUrl } from '../../lib/profile';
+import { DEFAULT_AVATAR, getProfileDisplayName, getRoleLabel, hasRole, PROFILE_UPDATED_EVENT, resolveAvatarUrl } from '../../lib/profile';
+import type { UserProfile } from '../../types';
 
 const DashboardNavbar = () => {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [userName, setUserName] = useState('User');
     const [roleLabel, setRoleLabel] = useState('Owner');
     const [avatarSrc, setAvatarSrc] = useState(DEFAULT_AVATAR);
+    const [renterDestination, setRenterDestination] = useState('/');
 
     useEffect(() => {
         const loadProfile = async () => {
             try {
                 const profile = await getMyProfile();
                 setUserName(getProfileDisplayName(profile.full_name, profile.email));
-                setRoleLabel(getRoleLabel(profile.role));
+                setRoleLabel(getRoleLabel(profile.roles));
                 setAvatarSrc(resolveAvatarUrl(profile.avatar_url));
+                setRenterDestination(hasRole(profile.roles, 'renter') || hasRole(profile.roles, 'user') ? '/user-dashboard' : '/');
             } catch {
                 // Keep fallback labels if profile request fails.
             }
         };
         void loadProfile();
+    }, []);
+
+    useEffect(() => {
+        const handleProfileUpdated = (event: Event) => {
+            const profile = (event as CustomEvent<UserProfile>).detail;
+            if (!profile) return;
+
+            setUserName(getProfileDisplayName(profile.full_name, profile.email));
+            setRoleLabel(getRoleLabel(profile.roles));
+            setAvatarSrc(resolveAvatarUrl(profile.avatar_url));
+            setRenterDestination(hasRole(profile.roles, 'renter') || hasRole(profile.roles, 'user') ? '/user-dashboard' : '/');
+        };
+
+        window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated as EventListener);
+        return () => window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated as EventListener);
     }, []);
 
     return (
@@ -37,7 +55,10 @@ const DashboardNavbar = () => {
 
             {/* User Actions */}
             <div className="flex items-center gap-4">
-                <Link to="/" className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition mr-4 hidden md:block">
+                <Link
+                    to={renterDestination}
+                    className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition mr-4 hidden md:block"
+                >
                     Switch to Renter
                 </Link>
                 <div className="relative">

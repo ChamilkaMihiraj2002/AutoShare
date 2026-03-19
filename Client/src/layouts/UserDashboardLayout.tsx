@@ -2,14 +2,15 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { User, Calendar, Heart, Settings } from 'lucide-react';
 
 const UserDashboardLayout = () => {
-
     return (
         <div className="min-h-screen bg-gray-50 pt-24 pb-12">
             <div className="max-w-7xl mx-auto px-6">
 
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-[#003049]">My Profile</h1>
-                    <p className="text-gray-500 mt-2">Manage your account and view your rental activity</p>
+                    <div>
+                        <h1 className="text-3xl font-bold text-[#003049]">My Profile</h1>
+                        <p className="text-gray-500 mt-2">Manage your account and view your rental activity</p>
+                    </div>
                 </div>
 
                 {/* Dashboard Navigation */}

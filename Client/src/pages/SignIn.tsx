@@ -4,6 +4,7 @@ import { Car, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { loginSocial, getMyProfile, loginWithEmail } from '../lib/api';
 import { setAuthToken } from '../lib/auth';
 import { signInWithGooglePopup } from '../lib/firebase';
+import { getDefaultDashboardPath } from '../lib/profile';
 
 const SignIn = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ const SignIn = () => {
       }
       setAuthToken(auth.idToken);
       const profile = await getMyProfile();
-      navigate(profile.role === 'owner' ? '/dashboard' : '/user-dashboard');
+      navigate(getDefaultDashboardPath(profile));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in');
     } finally {
@@ -39,7 +40,7 @@ const SignIn = () => {
       const { idToken } = await signInWithGooglePopup();
       setAuthToken(idToken);
       const profile = await loginSocial(idToken);
-      navigate(profile.role === 'owner' ? '/dashboard' : '/user-dashboard');
+      navigate(getDefaultDashboardPath(profile));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to sign in with Google';
       if (message.toLowerCase().includes('profile not found')) {

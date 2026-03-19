@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { clearAuthToken, getAuthToken } from '../../lib/auth';
 import { getMyProfile } from '../../lib/api';
-import { DEFAULT_AVATAR, getProfileDisplayName, resolveAvatarUrl } from '../../lib/profile';
+import { DEFAULT_AVATAR, getDefaultDashboardPath, getProfileDisplayName, hasRole, PROFILE_UPDATED_EVENT, resolveAvatarUrl } from '../../lib/profile';
+import type { UserProfile } from '../../types';
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -12,8 +13,12 @@ const Navbar = () => {
   const [profileName, setProfileName] = useState('User');
   const [profileEmail, setProfileEmail] = useState('');
   const [profileAvatar, setProfileAvatar] = useState(DEFAULT_AVATAR);
+  const [dashboardPath, setDashboardPath] = useState('/user-dashboard');
+  const [settingsPath, setSettingsPath] = useState('/user-dashboard/settings');
+  const [canSwitchToOwner, setCanSwitchToOwner] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const isUserDashboard = location.pathname.startsWith('/user-dashboard');
 
   // Prevent scrolling when mobile menu is open
   useEffect(() => {
@@ -32,6 +37,9 @@ const Navbar = () => {
         setProfileName('User');
         setProfileEmail('');
         setProfileAvatar(DEFAULT_AVATAR);
+        setDashboardPath('/user-dashboard');
+        setSettingsPath('/user-dashboard/settings');
+        setCanSwitchToOwner(false);
         return;
       }
 
@@ -41,16 +49,40 @@ const Navbar = () => {
         setProfileName(getProfileDisplayName(profile.full_name, profile.email));
         setProfileEmail(profile.email);
         setProfileAvatar(resolveAvatarUrl(profile.avatar_url));
+        setDashboardPath(getDefaultDashboardPath(profile));
+        setSettingsPath(getDefaultDashboardPath(profile) === '/dashboard' ? '/dashboard/settings' : '/user-dashboard/settings');
+        setCanSwitchToOwner(hasRole(profile.roles, 'vehicle_owner'));
       } catch {
         setIsLoggedIn(false);
         setProfileName('User');
         setProfileEmail('');
         setProfileAvatar(DEFAULT_AVATAR);
+        setDashboardPath('/user-dashboard');
+        setSettingsPath('/user-dashboard/settings');
+        setCanSwitchToOwner(false);
       }
     };
 
     void loadProfile();
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleProfileUpdated = (event: Event) => {
+      const profile = (event as CustomEvent<UserProfile>).detail;
+      if (!profile) return;
+
+      setIsLoggedIn(true);
+      setProfileName(getProfileDisplayName(profile.full_name, profile.email));
+      setProfileEmail(profile.email);
+      setProfileAvatar(resolveAvatarUrl(profile.avatar_url));
+      setDashboardPath(getDefaultDashboardPath(profile));
+      setSettingsPath(getDefaultDashboardPath(profile) === '/dashboard' ? '/dashboard/settings' : '/user-dashboard/settings');
+      setCanSwitchToOwner(hasRole(profile.roles, 'vehicle_owner'));
+    };
+
+    window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated as EventListener);
+    return () => window.removeEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated as EventListener);
+  }, []);
 
   // Dynamic styling based on current page
   const navBaseClass = isHome
@@ -80,39 +112,49 @@ const Navbar = () => {
       {/* Auth Buttons / Profile */}
       <div className="hidden md:flex items-center gap-6">
         {isLoggedIn ? (
-          <div className="relative">
-            <button
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center gap-2 p-1 pl-3 bg-gray-50 rounded-full hover:bg-gray-100 transition border border-gray-200"
-            >
-              <span className="text-sm font-bold text-gray-700">{profileName}</span>
-              <img src={profileAvatar} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 animate-in fade-in slide-in-from-top-2">
-                <div className="px-4 py-3 border-b border-gray-50 mb-2">
-                  <p className="font-bold text-sm text-gray-900">{profileName}</p>
-                  <p className="text-xs text-gray-500">{profileEmail}</p>
-                </div>
-                <Link to="/user-dashboard" className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">
-                  <User size={16} /> My Profile
-                </Link>
-                <Link to="/user-dashboard/settings" className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">
-                  <Settings size={16} /> Settings
-                </Link>
-                <div className="h-px bg-gray-50 my-2"></div>
-                <Link
-                  to="/signin"
-                  onClick={clearAuthToken}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium"
-                >
-                  <LogOut size={16} /> Sign Out
-                </Link>
-              </div>
+          <>
+            {isUserDashboard && canSwitchToOwner && (
+              <Link
+                to="/dashboard"
+                className="text-sm font-semibold text-gray-500 hover:text-orange-600 transition"
+              >
+                Switch to Vehicle Owner
+              </Link>
             )}
-          </div>
+            <div className="relative">
+              <button
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 p-1 pl-3 bg-gray-50 rounded-full hover:bg-gray-100 transition border border-gray-200"
+              >
+                <span className="text-sm font-bold text-gray-700">{profileName}</span>
+                <img src={profileAvatar} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
+              </button>
+
+              {/* Dropdown Menu */}
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 animate-in fade-in slide-in-from-top-2">
+                  <div className="px-4 py-3 border-b border-gray-50 mb-2">
+                    <p className="font-bold text-sm text-gray-900">{profileName}</p>
+                    <p className="text-xs text-gray-500">{profileEmail}</p>
+                  </div>
+                  <Link to={dashboardPath} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                    <User size={16} /> My Profile
+                  </Link>
+                  <Link to={settingsPath} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                    <Settings size={16} /> Settings
+                  </Link>
+                  <div className="h-px bg-gray-50 my-2"></div>
+                  <Link
+                    to="/signin"
+                    onClick={clearAuthToken}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium"
+                  >
+                    <LogOut size={16} /> Sign Out
+                  </Link>
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <>
             <Link to="/signin" className="text-sm font-bold hover:opacity-80 transition">Sign In</Link>
@@ -149,7 +191,10 @@ const Navbar = () => {
               <Link to="/about" className="hover:text-orange-500" onClick={closeMenu}>About</Link>
               <Link to="/contact" className="hover:text-orange-500" onClick={closeMenu}>Contact Us</Link>
               {isLoggedIn && (
-                <Link to="/user-dashboard" className="hover:text-orange-500" onClick={closeMenu}>My Dashboard</Link>
+                <Link to={dashboardPath} className="hover:text-orange-500" onClick={closeMenu}>My Dashboard</Link>
+              )}
+              {isLoggedIn && isUserDashboard && canSwitchToOwner && (
+                <Link to="/dashboard" className="hover:text-orange-500" onClick={closeMenu}>Switch to Vehicle Owner</Link>
               )}
             </div>
 

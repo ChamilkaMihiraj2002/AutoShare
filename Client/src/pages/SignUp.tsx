@@ -4,6 +4,7 @@ import { Car, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { loginSocial } from '../lib/api';
 import { setAuthToken } from '../lib/auth';
 import { signInWithGooglePopup } from '../lib/firebase';
+import { getDefaultDashboardPath } from '../lib/profile';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ const SignUp = () => {
       const { idToken } = await signInWithGooglePopup();
       setAuthToken(idToken);
       const profile = await loginSocial(idToken);
-      navigate(profile.role === 'owner' ? '/dashboard' : '/user-dashboard');
+      navigate(getDefaultDashboardPath(profile));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to sign up with Google';
       if (message.toLowerCase().includes('profile not found')) {

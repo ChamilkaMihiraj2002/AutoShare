@@ -1,11 +1,19 @@
 import React from 'react';
 import { Calendar, Clock } from 'lucide-react';
-import { getMyRents } from '../../lib/api';
+import { getMyRents, getPublicVehicles, getUserPublicProfile } from '../../lib/api';
 import LoadingScreen from '../../components/common/LoadingScreen';
+import { getPrimaryVehicleImage, getProfileDisplayName } from '../../lib/profile';
 import type { RentApi } from '../../types';
+
+type BookingDisplay = {
+    ownerName: string;
+    vehicleName: string;
+    vehicleImage: string;
+};
 
 const UserBookings = () => {
     const [bookings, setBookings] = React.useState<RentApi[]>([]);
+    const [displayByRentId, setDisplayByRentId] = React.useState<Map<string, BookingDisplay>>(new Map());
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState('');
 
@@ -16,6 +24,34 @@ const UserBookings = () => {
             try {
                 const result = await getMyRents();
                 setBookings(result);
+
+                const [vehicles, ownerEntries] = await Promise.all([
+                    getPublicVehicles(),
+                    Promise.all(
+                        Array.from(new Set(result.map((booking) => booking.owner_uid))).map(async (uid) => {
+                            try {
+                                const profile = await getUserPublicProfile(uid);
+                                return [uid, getProfileDisplayName(profile.full_name, profile.email)] as const;
+                            } catch {
+                                return [uid, 'Owner'] as const;
+                            }
+                        }),
+                    ),
+                ]);
+
+                const vehicleById = new Map(vehicles.map((vehicle) => [vehicle.vehicleid, vehicle]));
+                const ownerNameByUid = new Map(ownerEntries);
+
+                const nextDisplayByRentId = new Map<string, BookingDisplay>();
+                result.forEach((booking) => {
+                    const vehicle = vehicleById.get(booking.vehicle_id);
+                    nextDisplayByRentId.set(booking.rentid, {
+                        ownerName: ownerNameByUid.get(booking.owner_uid) || 'Owner',
+                        vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Vehicle',
+                        vehicleImage: getPrimaryVehicleImage(vehicle?.image_urls, vehicle?.image_url),
+                    });
+                });
+                setDisplayByRentId(nextDisplayByRentId);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to load bookings');
             } finally {
@@ -53,13 +89,17 @@ const UserBookings = () => {
             <div className="space-y-4">
                 {bookings.map((booking) => {
                     const status = formatBookingStatus(booking.end_date);
+                    const display = displayByRentId.get(booking.rentid);
+                    const vehicleName = display?.vehicleName || 'Vehicle';
+                    const ownerName = display?.ownerName || 'Owner';
+                    const vehicleImage = display?.vehicleImage || getPrimaryVehicleImage();
                     return (
                     <div key={booking.rentid} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row gap-6 transition hover:shadow-md">
                         {/* Vehicle Image */}
                         <div className="w-full md:w-64 h-40 rounded-xl overflow-hidden flex-shrink-0">
                             <img
-                                src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80"
-                                alt={booking.vehicle_id}
+                                src={vehicleImage}
+                                alt={vehicleName}
                                 className="w-full h-full object-cover"
                             />
                         </div>
@@ -70,12 +110,12 @@ const UserBookings = () => {
                                 <div className="flex justify-between items-start mb-2">
                                     <div>
                                         <div className="flex items-center gap-3">
-                                            <h3 className="text-xl font-bold text-gray-900">Vehicle #{booking.vehicle_id}</h3>
+                                            <h3 className="text-xl font-bold text-gray-900">{vehicleName}</h3>
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(status)}`}>
                                                 {status}
                                             </span>
                                         </div>
-                                        <p className="text-gray-500 text-sm mt-1">Owned by {booking.owner_uid}</p>
+                                        <p className="text-gray-500 text-sm mt-1">Owned by {ownerName}</p>
                                     </div>
                                     <span className="font-bold text-lg text-[#003049]">-</span>
                                 </div>
