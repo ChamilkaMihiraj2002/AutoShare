@@ -4,9 +4,11 @@ import { Car, MapPin, Phone, FileText, ArrowLeft } from 'lucide-react';
 import { loginSocial, loginWithEmail, registerSocial, registerWithEmail } from '../lib/api';
 import { getAuthToken, setAuthToken } from '../lib/auth';
 import { signInWithGooglePopup } from '../lib/firebase';
+import { getDefaultDashboardPath, getRoleLabel } from '../lib/profile';
+import type { UserRole } from '../types';
 
 interface SignUpDetailsState {
-  role: 'renter' | 'owner';
+  roles: UserRole[];
   provider: 'email' | 'google';
   email?: string;
   password?: string;
@@ -16,7 +18,7 @@ const SignUpDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as SignUpDetailsState;
-  const role = state?.role;
+  const roles = state?.roles;
   const provider = state?.provider;
   const email = state?.email;
   const password = state?.password;
@@ -25,7 +27,6 @@ const SignUpDetails = () => {
     address: '',
     nic: '',
     phone: '',
-    role: role || ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -66,7 +67,7 @@ const SignUpDetails = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError('');
-    if (!validateForm() || !role || !provider) {
+    if (!validateForm() || !roles?.length || !provider) {
       return;
     }
 
@@ -82,7 +83,7 @@ const SignUpDetails = () => {
           address: formData.address,
           nic: formData.nic,
           phone: formData.phone,
-          role,
+          roles,
         });
 
         const auth = await loginWithEmail(email, password);
@@ -104,16 +105,16 @@ const SignUpDetails = () => {
             address: formData.address,
             nic: formData.nic,
             phone: formData.phone,
-            role,
+            roles,
           },
           token,
         );
         const profile = await loginSocial(token);
         setAuthToken(token);
-        navigate(profile.role === 'owner' ? '/dashboard' : '/user-dashboard');
+        navigate(getDefaultDashboardPath(profile));
         return;
       }
-      navigate(role === 'owner' ? '/dashboard' : '/user-dashboard');
+      navigate(roles.includes('vehicle_owner') ? '/dashboard' : '/user-dashboard');
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to complete sign up');
     } finally {
@@ -121,7 +122,7 @@ const SignUpDetails = () => {
     }
   };
 
-  if (!role || !provider || (provider === 'email' && (!email || !password))) {
+  if (!roles?.length || !provider || (provider === 'email' && (!email || !password))) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -147,9 +148,11 @@ const SignUpDetails = () => {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Complete Your Profile</h1>
           <p className="text-gray-500">
-            {role === 'renter'
-              ? 'Tell us more about yourself to get started renting'
-              : 'Provide your details to start listing vehicles'}
+            {roles.includes('vehicle_owner') && roles.includes('renter')
+              ? 'Tell us more about yourself to unlock both renting and vehicle hosting'
+              : roles.includes('vehicle_owner')
+                ? 'Provide your details to start listing vehicles'
+                : 'Tell us more about yourself to get started renting'}
           </p>
         </div>
 
@@ -224,8 +227,8 @@ const SignUpDetails = () => {
               </p>
             )}
             <p className="text-sm text-gray-600">
-              <span className="font-semibold text-gray-700">Selected Role: </span>
-              <span className="capitalize font-bold text-[#003049]">{role}</span>
+              <span className="font-semibold text-gray-700">Selected Roles: </span>
+              <span className="font-bold text-[#003049]">{getRoleLabel(roles)}</span>
             </p>
           </div>
 
@@ -255,12 +258,18 @@ const SignUpDetails = () => {
 
         <div className="relative z-10 w-full max-w-lg text-center">
           <h2 className="text-3xl font-bold text-white mb-6">
-            {role === 'renter' ? 'Ready to Explore?' : 'Ready to Earn?'}
+            {roles.includes('vehicle_owner') && roles.includes('renter')
+              ? 'Ready to Rent and Earn?'
+              : roles.includes('vehicle_owner')
+                ? 'Ready to Earn?'
+                : 'Ready to Explore?'}
           </h2>
           <p className="text-gray-400 mb-12 text-sm leading-relaxed">
-            {role === 'renter'
-              ? 'Find the perfect vehicle for your next journey. Browse thousands of options and book instantly.'
-              : 'Start earning by sharing your vehicle with our community. Set your own prices and availability.'}
+            {roles.includes('vehicle_owner') && roles.includes('renter')
+              ? 'You can start renting right away and list your own vehicle whenever you are ready.'
+              : roles.includes('vehicle_owner')
+                ? 'Start earning by sharing your vehicle with our community. Set your own prices and availability.'
+                : 'Find the perfect vehicle for your next journey. Browse thousands of options and book instantly.'}
           </p>
 
           <div className="grid grid-cols-2 gap-6">
