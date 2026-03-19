@@ -51,7 +51,7 @@ async def register_email_user(
         address=payload.address,
         nic=payload.nic,
         phone=payload.phone,
-        role=payload.role or "user"
+        roles=payload.roles,
     )
 
     # C. Create Mongo Profile (with Rollback)
