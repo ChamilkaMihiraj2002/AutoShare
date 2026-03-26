@@ -79,6 +79,7 @@ export interface RentApi {
   vehicle_id: string;
   start_date: string;
   end_date: string;
+  booking_status: 'pending' | 'accepted' | 'cancelled' | 'completed';
   pickup_option?: string;
   delivery_address?: string | null;
   insurance_plan?: string;

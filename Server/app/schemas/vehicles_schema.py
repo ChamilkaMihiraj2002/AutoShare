@@ -1,5 +1,45 @@
+from typing import Any, Optional
+from urllib.parse import urlparse
+
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional
+
+
+def normalize_vehicle_image_url(image_url: str | None) -> str | None:
+    if image_url is None:
+        return None
+
+    normalized = image_url.strip().replace("\\", "/")
+    if not normalized:
+        return None
+
+    parsed = urlparse(normalized)
+    if parsed.scheme and parsed.netloc:
+        normalized = parsed.path or normalized
+
+    uploads_index = normalized.lower().find("/uploads/")
+    if uploads_index >= 0:
+        normalized = normalized[uploads_index:]
+    elif normalized.lower().startswith("uploads/"):
+        normalized = f"/{normalized}"
+    elif not normalized.startswith("/"):
+        normalized = f"/{normalized}"
+
+    return normalized
+
+
+def normalize_vehicle_image_urls(values: list[str] | None, legacy_value: str | None = None) -> tuple[list[str], str | None]:
+    normalized_urls: list[str] = []
+    candidates = list(values or [])
+    if legacy_value:
+        candidates.append(legacy_value)
+
+    for value in candidates:
+        normalized = normalize_vehicle_image_url(value)
+        if normalized and normalized not in normalized_urls:
+            normalized_urls.append(normalized)
+
+    primary = normalized_urls[0] if normalized_urls else None
+    return normalized_urls, primary
 
 
 class VehicleBase(BaseModel):
@@ -15,6 +55,21 @@ class VehicleBase(BaseModel):
     seats: int = 5
     image_urls: list[str] = Field(default_factory=list)
     image_url: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_image_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        image_urls, image_url = normalize_vehicle_image_urls(
+            normalized.get("image_urls"),
+            normalized.get("image_url"),
+        )
+        normalized["image_urls"] = image_urls
+        normalized["image_url"] = image_url
+        return normalized
 
 
 class VehicleCreate(VehicleBase):
@@ -39,6 +94,26 @@ class VehicleUpdate(BaseModel):
     seats: Optional[int] = None
     image_urls: Optional[list[str]] = None
     image_url: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_image_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        has_urls = "image_urls" in normalized
+        has_url = "image_url" in normalized
+        if has_urls or has_url:
+            image_urls, image_url = normalize_vehicle_image_urls(
+                normalized.get("image_urls") if has_urls else None,
+                normalized.get("image_url") if has_url else None,
+            )
+            if has_urls:
+                normalized["image_urls"] = image_urls
+            if has_url:
+                normalized["image_url"] = image_url
+        return normalized
 
     @model_validator(mode="after")
     def check_at_least_one(cls, values):

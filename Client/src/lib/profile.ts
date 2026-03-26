@@ -54,11 +54,23 @@ export function getRoleLabel(roles: UserRole[] | null | undefined): string {
 
 export function resolveBackendAssetUrl(assetUrl?: string | null, fallback = DEFAULT_AVATAR): string {
   if (!assetUrl) return fallback;
-  if (assetUrl.startsWith('http://') || assetUrl.startsWith('https://')) {
-    return assetUrl;
+
+  const normalizedAssetUrl = assetUrl.trim().replace(/\\/g, '/');
+  if (!normalizedAssetUrl) return fallback;
+
+  const uploadsIndex = normalizedAssetUrl.toLowerCase().indexOf('/uploads/');
+  if (uploadsIndex >= 0) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    return `${baseUrl}${normalizedAssetUrl.slice(uploadsIndex)}`;
   }
+
+  if (normalizedAssetUrl.startsWith('http://') || normalizedAssetUrl.startsWith('https://')) {
+    return normalizedAssetUrl;
+  }
+
+  const relativePath = normalizedAssetUrl.startsWith('/') ? normalizedAssetUrl : `/${normalizedAssetUrl}`;
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  return `${baseUrl}${assetUrl}`;
+  return `${baseUrl}${relativePath}`;
 }
 
 export function resolveAvatarUrl(avatarUrl?: string | null): string {

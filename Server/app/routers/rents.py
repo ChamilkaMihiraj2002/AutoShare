@@ -11,13 +11,25 @@ from app.repositories.rent import (
     list_rents_by_renter,
     list_rents_by_owner,
     update_rent,
+    accept_rent,
+    set_rent_status,
     delete_rent,
 )
+from app.repositories.vehicle import get_vehicle_by_id, update_vehicle
 
 router = APIRouter(
     prefix="/rents",
     tags=["Rents"],
 )
+
+
+async def _get_owner_rent_or_404(db: AsyncIOMotorDatabase, owner_uid: str, rent_id: str) -> dict:
+    rent = await get_rent_by_id(db=db, rent_id=rent_id)
+    if not rent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found")
+    if rent.get("owner_uid") != owner_uid:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
+    return rent
 
 
 @router.post("/", response_model=Rent, status_code=201)
@@ -82,6 +94,82 @@ async def patch_rent(
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
     return updated
+
+
+@router.post("/{rent_id}/accept", response_model=Rent)
+async def accept_rent_request(
+    rent_id: str,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    owner_uid = decoded_token.get("uid")
+    rent = await _get_owner_rent_or_404(db, owner_uid, rent_id)
+
+    vehicle = await get_vehicle_by_id(db=db, vehicle_id=rent["vehicle_id"])
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+
+    updated_vehicle = await update_vehicle(
+        db=db,
+        owner_uid=owner_uid,
+        vehicle_id=rent["vehicle_id"],
+        update_fields={"availability": False},
+    )
+    if not updated_vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
+
+    updated_rent = await accept_rent(db=db, owner_uid=owner_uid, rent_id=rent_id)
+    if not updated_rent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    return updated_rent
+
+
+@router.post("/{rent_id}/cancel", response_model=Rent)
+async def cancel_rent_request(
+    rent_id: str,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    owner_uid = decoded_token.get("uid")
+    rent = await _get_owner_rent_or_404(db, owner_uid, rent_id)
+
+    updated_vehicle = await update_vehicle(
+        db=db,
+        owner_uid=owner_uid,
+        vehicle_id=rent["vehicle_id"],
+        update_fields={"availability": True},
+    )
+    if not updated_vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
+
+    updated_rent = await set_rent_status(db=db, owner_uid=owner_uid, rent_id=rent_id, booking_status="cancelled")
+    if not updated_rent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    return updated_rent
+
+
+@router.post("/{rent_id}/complete", response_model=Rent)
+async def complete_rent_request(
+    rent_id: str,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    owner_uid = decoded_token.get("uid")
+    rent = await _get_owner_rent_or_404(db, owner_uid, rent_id)
+
+    updated_vehicle = await update_vehicle(
+        db=db,
+        owner_uid=owner_uid,
+        vehicle_id=rent["vehicle_id"],
+        update_fields={"availability": True},
+    )
+    if not updated_vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
+
+    updated_rent = await set_rent_status(db=db, owner_uid=owner_uid, rent_id=rent_id, booking_status="completed")
+    if not updated_rent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    return updated_rent
 
 
 @router.delete("/{rent_id}", status_code=204)

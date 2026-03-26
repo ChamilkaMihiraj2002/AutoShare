@@ -9,6 +9,7 @@ from typing import List
 from app.core.db import get_database
 from app.core.auth_deps import get_current_user
 from app.schemas import VehicleCreate, Vehicle, VehicleUpdate
+from app.schemas.vehicles_schema import normalize_vehicle_image_url, normalize_vehicle_image_urls
 from app.repositories.vehicle import (
     create_vehicle,
     get_vehicle_by_id,
@@ -30,6 +31,10 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": 
 
 def _normalize_image_url(image_url: str) -> str:
     """Accept absolute or relative URLs and return a relative path."""
+    normalized = normalize_vehicle_image_url(image_url)
+    if normalized:
+        return normalized
+
     parsed = urlparse(image_url)
     if parsed.scheme and parsed.netloc:
         return parsed.path
@@ -130,16 +135,16 @@ async def upload_vehicle_image(
     destination = VEHICLE_UPLOAD_DIR / filename
     destination.write_bytes(content)
     image_url = f"/uploads/vehicles/{filename}"
-    existing_urls = list(existing.get("image_urls") or [])
-    if not existing_urls and existing.get("image_url"):
-        existing_urls.append(existing["image_url"])
+    existing_urls, _ = normalize_vehicle_image_urls(existing.get("image_urls"), existing.get("image_url"))
     existing_urls.append(image_url)
+    existing_urls, _ = normalize_vehicle_image_urls(existing_urls)
+    primary_image_url = _normalize_image_url(image_url)
 
     updated = await update_vehicle(
         db=db,
         owner_uid=owner_uid,
         vehicle_id=vehicle_id,
-        update_fields={"image_urls": existing_urls, "image_url": image_url},
+        update_fields={"image_urls": existing_urls, "image_url": primary_image_url},
     )
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")

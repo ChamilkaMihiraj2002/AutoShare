@@ -6,6 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 
 type RequestMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 type RawVehicleApi = VehicleApi & { _id?: string };
+type RawRentApi = RentApi & { _id?: string };
 
 function normalizeVehicle(vehicle: RawVehicleApi): VehicleApi {
   const urls = Array.isArray(vehicle.image_urls) ? vehicle.image_urls.filter(Boolean) : [];
@@ -18,6 +19,14 @@ function normalizeVehicle(vehicle: RawVehicleApi): VehicleApi {
     seats: Number.isFinite(vehicle.seats) ? vehicle.seats : 5,
     image_urls,
     image_url,
+  };
+}
+
+function normalizeRent(rent: RawRentApi): RentApi {
+  return {
+    ...rent,
+    rentid: rent.rentid || rent._id || '',
+    booking_status: rent.booking_status || 'pending',
   };
 }
 
@@ -132,11 +141,13 @@ export async function getPublicVehicleById(vehicleId: string): Promise<VehicleAp
 }
 
 export async function getMyRents(): Promise<RentApi[]> {
-  return apiRequest<RentApi[]>('/rents/', 'GET', undefined, true);
+  const rents = await apiRequest<RawRentApi[]>('/rents/', 'GET', undefined, true);
+  return rents.map(normalizeRent);
 }
 
 export async function getOwnerRents(): Promise<RentApi[]> {
-  return apiRequest<RentApi[]>('/rents/owner', 'GET', undefined, true);
+  const rents = await apiRequest<RawRentApi[]>('/rents/owner', 'GET', undefined, true);
+  return rents.map(normalizeRent);
 }
 
 export async function getMyVehicles(): Promise<VehicleApi[]> {
@@ -270,7 +281,23 @@ export async function createRent(payload: {
   child_seat_count?: number;
   note?: string;
 }): Promise<RentApi> {
-  return apiRequest<RentApi>('/rents/', 'POST', payload, true);
+  const rent = await apiRequest<RawRentApi>('/rents/', 'POST', payload, true);
+  return normalizeRent(rent);
+}
+
+export async function acceptOwnerRent(rentId: string): Promise<RentApi> {
+  const rent = await apiRequest<RawRentApi>(`/rents/${rentId}/accept`, 'POST', undefined, true);
+  return normalizeRent(rent);
+}
+
+export async function cancelOwnerRent(rentId: string): Promise<RentApi> {
+  const rent = await apiRequest<RawRentApi>(`/rents/${rentId}/cancel`, 'POST', undefined, true);
+  return normalizeRent(rent);
+}
+
+export async function completeOwnerRent(rentId: string): Promise<RentApi> {
+  const rent = await apiRequest<RawRentApi>(`/rents/${rentId}/complete`, 'POST', undefined, true);
+  return normalizeRent(rent);
 }
 
 export async function uploadMyAvatar(file: File): Promise<UserProfile> {
