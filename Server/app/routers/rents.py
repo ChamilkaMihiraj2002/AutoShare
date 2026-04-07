@@ -4,7 +4,7 @@ from typing import List
 
 from app.core.db import get_database
 from app.core.auth_deps import get_current_user
-from app.schemas import RentCreate, Rent, RentUpdate
+from app.schemas import RentCreate, Rent, RentUpdate, OwnerEarningsOverview
 from app.repositories.rent import (
     create_rent,
     get_rent_by_id,
@@ -16,6 +16,7 @@ from app.repositories.rent import (
     delete_rent,
 )
 from app.repositories.vehicle import get_vehicle_by_id, update_vehicle
+from app.services.owner_earnings import get_owner_earnings_overview
 
 router = APIRouter(
     prefix="/rents",
@@ -64,6 +65,15 @@ async def list_owner_rents(
     owner_uid = decoded_token.get("uid")
     docs = await list_rents_by_owner(db=db, owner_uid=owner_uid)
     return docs
+
+
+@router.get("/owner/earnings", response_model=OwnerEarningsOverview)
+async def get_owner_earnings(
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    owner_uid = decoded_token.get("uid")
+    return await get_owner_earnings_overview(db=db, owner_uid=owner_uid)
 
 
 @router.get("/{rent_id}", response_model=Rent)

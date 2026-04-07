@@ -27,6 +27,12 @@ from .rents_schema import (
     RentUpdate,
     Rent,
 )
+from .earnings_schema import (
+    EarningsPeriodSummary,
+    EarningsSummary,
+    OwnerEarningsTransaction,
+    OwnerEarningsOverview,
+)
 
 __all__ = [
     "UserProfileBase",
@@ -46,4 +52,8 @@ __all__ = [
     "RentCreate",
     "RentUpdate",
     "Rent",
+    "EarningsPeriodSummary",
+    "EarningsSummary",
+    "OwnerEarningsTransaction",
+    "OwnerEarningsOverview",
 ]
