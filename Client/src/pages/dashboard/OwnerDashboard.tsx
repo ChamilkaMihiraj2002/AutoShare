@@ -1,8 +1,11 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
+
 import StatCard from '../../components/dashboard/StatCard';
-import { dashboardStats, recentActivity } from '../../data/mockData';
+import { recentActivity } from '../../data/mockData';
+import { useOwnerEarnings } from '../../hooks/useOwnerEarnings';
 import { getMyVehicles, getOwnerRents, getUserPublicProfile } from '../../lib/api';
+import { buildOwnerDashboardStats } from '../../lib/ownerEarnings';
 import { formatLkr } from '../../lib/currency';
 import { getProfileDisplayName } from '../../lib/profile';
 
@@ -16,12 +19,19 @@ type PendingOwnerRequest = {
 };
 
 const OwnerDashboard = () => {
+    const { earnings } = useOwnerEarnings();
     const [pendingRequests, setPendingRequests] = React.useState<PendingOwnerRequest[]>([]);
+    const [ownerRents, setOwnerRents] = React.useState<Awaited<ReturnType<typeof getOwnerRents>>>([]);
+    const [ownerVehicles, setOwnerVehicles] = React.useState<Awaited<ReturnType<typeof getMyVehicles>>>([]);
+
+    const stats = buildOwnerDashboardStats(earnings, ownerRents, ownerVehicles);
 
     React.useEffect(() => {
         const loadPending = async () => {
             try {
                 const [rents, vehicles] = await Promise.all([getOwnerRents(), getMyVehicles()]);
+                setOwnerRents(rents);
+                setOwnerVehicles(vehicles);
                 const renterIds = Array.from(new Set(rents.map((rent) => rent.renter_uid)));
                 const renterEntries = await Promise.all(
                     renterIds.map(async (uid) => {
@@ -64,6 +74,8 @@ const OwnerDashboard = () => {
                 setPendingRequests(upcoming);
             } catch {
                 setPendingRequests([]);
+                setOwnerRents([]);
+                setOwnerVehicles([]);
             }
         };
 
@@ -74,7 +86,7 @@ const OwnerDashboard = () => {
         <div className="space-y-8">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {dashboardStats.map((stat, index) => (
+                {stats.map((stat, index) => (
                     <StatCard
                         key={index}
                         label={stat.label}

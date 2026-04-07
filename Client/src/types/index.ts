@@ -86,3 +86,31 @@ export interface RentApi {
   child_seat_count?: number;
   note?: string | null;
 }
+
+export interface OwnerEarningsPeriodSummary {
+  amount: number;
+  bookings: number;
+}
+
+export interface OwnerEarningsSummary {
+  this_month: OwnerEarningsPeriodSummary;
+  last_month: OwnerEarningsPeriodSummary;
+  all_time: OwnerEarningsPeriodSummary;
+  change_percentage: number;
+}
+
+export interface OwnerEarningsTransaction {
+  rent_id: string;
+  vehicle_id: string;
+  vehicle_name: string;
+  renter_uid: string;
+  start_date: string;
+  end_date: string;
+  amount: number;
+  booking_status: 'pending' | 'accepted' | 'cancelled' | 'completed';
+}
+
+export interface OwnerEarningsOverview {
+  summary: OwnerEarningsSummary;
+  transactions: OwnerEarningsTransaction[];
+}
