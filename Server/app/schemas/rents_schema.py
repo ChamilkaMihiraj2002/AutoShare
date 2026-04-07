@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional
+from typing import Literal, Optional
 from datetime import datetime
 
 
@@ -7,6 +7,7 @@ class RentBase(BaseModel):
     vehicle_id: str
     start_date: datetime
     end_date: datetime
+    booking_status: Literal["pending", "accepted", "cancelled", "completed"] = "pending"
     pickup_option: str = "self_pickup"
     delivery_address: Optional[str] = None
     insurance_plan: str = "basic"

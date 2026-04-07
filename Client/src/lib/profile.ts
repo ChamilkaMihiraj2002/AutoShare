@@ -3,6 +3,7 @@ import type { UserProfile, UserRole } from '../types';
 export const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
 export const PROFILE_UPDATED_EVENT = 'autoshare:profile-updated';
+const DEFAULT_API_BASE_URL = 'http://localhost:8000';
 
 export function getDisplayNameFromEmail(email: string): string {
   const local = (email || '').split('@')[0] || 'User';
@@ -52,13 +53,49 @@ export function getRoleLabel(roles: UserRole[] | null | undefined): string {
   return normalized.join(', ');
 }
 
+function getApiBaseUrl(): string {
+  return (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).trim().replace(/\/+$/, '');
+}
+
+function getBackendOrigin(): string {
+  const apiBaseUrl = getApiBaseUrl();
+
+  try {
+    return new URL(apiBaseUrl).origin;
+  } catch {
+    if (typeof window !== 'undefined') {
+      try {
+        return new URL(apiBaseUrl, window.location.origin).origin;
+      } catch {
+        return DEFAULT_API_BASE_URL;
+      }
+    }
+
+    return DEFAULT_API_BASE_URL;
+  }
+}
+
 export function resolveBackendAssetUrl(assetUrl?: string | null, fallback = DEFAULT_AVATAR): string {
   if (!assetUrl) return fallback;
-  if (assetUrl.startsWith('http://') || assetUrl.startsWith('https://')) {
-    return assetUrl;
+
+  const normalizedAssetUrl = assetUrl.trim().replace(/\\/g, '/');
+  if (!normalizedAssetUrl) return fallback;
+
+  if (normalizedAssetUrl.startsWith('data:') || normalizedAssetUrl.startsWith('blob:')) {
+    return normalizedAssetUrl;
   }
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  return `${baseUrl}${assetUrl}`;
+
+  const uploadsIndex = normalizedAssetUrl.toLowerCase().indexOf('/uploads/');
+  if (uploadsIndex >= 0) {
+    return `${getBackendOrigin()}${normalizedAssetUrl.slice(uploadsIndex)}`;
+  }
+
+  if (normalizedAssetUrl.startsWith('http://') || normalizedAssetUrl.startsWith('https://')) {
+    return normalizedAssetUrl;
+  }
+
+  const relativePath = normalizedAssetUrl.startsWith('/') ? normalizedAssetUrl : `/${normalizedAssetUrl}`;
+  return `${getBackendOrigin()}${relativePath}`;
 }
 
 export function resolveAvatarUrl(avatarUrl?: string | null): string {

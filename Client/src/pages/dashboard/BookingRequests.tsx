@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, Eye } from 'lucide-react';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import Modal from '../../components/common/Modal';
-import { getMyVehicles, getOwnerRents, getUserPublicProfile } from '../../lib/api';
+import { acceptOwnerRent, cancelOwnerRent, completeOwnerRent, getMyVehicles, getOwnerRents, getUserPublicProfile } from '../../lib/api';
 import { formatLkr } from '../../lib/currency';
 import { getProfileDisplayName } from '../../lib/profile';
 
@@ -13,7 +13,7 @@ type BookingRequestRow = {
   vehicleName: string;
   dateRange: string;
   amountLabel: string;
-  status: 'Upcoming' | 'Completed';
+  status: 'Pending' | 'Accepted' | 'Completed' | 'Cancelled';
   pickupOption: string;
   deliveryAddress: string | null;
   insurancePlan: string;
@@ -27,71 +27,153 @@ const BookingRequests = () => {
   const [error, setError] = React.useState('');
   const [search, setSearch] = React.useState('');
   const [selectedRequest, setSelectedRequest] = React.useState<BookingRequestRow | null>(null);
+  const [submittingId, setSubmittingId] = React.useState<string | null>(null);
+
+  const loadRequests = React.useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [rents, vehicles] = await Promise.all([getOwnerRents(), getMyVehicles()]);
+      const renterIds = Array.from(new Set(rents.map((rent) => rent.renter_uid)));
+      const renterEntries = await Promise.all(
+        renterIds.map(async (uid) => {
+          try {
+            const profile = await getUserPublicProfile(uid);
+            return [uid, getProfileDisplayName(profile.full_name, profile.email)] as const;
+          } catch {
+            return [uid, uid] as const;
+          }
+        }),
+      );
+      const renterNameByUid = new Map(renterEntries);
+
+      const vehicleById = new Map(
+        vehicles.map((vehicle) => [
+          vehicle.vehicleid,
+          {
+            name: `${vehicle.brand} ${vehicle.model}`,
+            price: vehicle.price,
+          },
+        ]),
+      );
+
+      const mapped = rents.map<BookingRequestRow>((rent) => {
+        const vehicleInfo = vehicleById.get(rent.vehicle_id);
+        const start = new Date(rent.start_date);
+        const end = new Date(rent.end_date);
+        const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+        const amount = vehicleInfo ? vehicleInfo.price * days : 0;
+        const status: BookingRequestRow['status'] =
+          rent.booking_status === 'cancelled'
+            ? 'Cancelled'
+            : rent.booking_status === 'completed' || end <= new Date()
+              ? 'Completed'
+              : rent.booking_status === 'accepted'
+                ? 'Accepted'
+                : 'Pending';
+
+        return {
+          id: rent.rentid,
+          renterUid: rent.renter_uid,
+          renterName: renterNameByUid.get(rent.renter_uid) || rent.renter_uid,
+          vehicleName: vehicleInfo?.name || `Vehicle #${rent.vehicle_id}`,
+          dateRange: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
+          amountLabel: amount > 0 ? formatLkr(amount) : '-',
+          status,
+          pickupOption: rent.pickup_option || 'self_pickup',
+          deliveryAddress: rent.delivery_address || null,
+          insurancePlan: rent.insurance_plan || 'basic',
+          childSeatCount: rent.child_seat_count ?? 0,
+          note: rent.note || null,
+        };
+      });
+
+      const sortOrder: Record<BookingRequestRow['status'], number> = {
+        Pending: 0,
+        Accepted: 1,
+        Completed: 2,
+        Cancelled: 3,
+      };
+      mapped.sort((a, b) => sortOrder[a.status] - sortOrder[b.status]);
+      setRequests(mapped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load booking requests');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
-    const loadRequests = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const [rents, vehicles] = await Promise.all([getOwnerRents(), getMyVehicles()]);
-        const renterIds = Array.from(new Set(rents.map((rent) => rent.renter_uid)));
-        const renterEntries = await Promise.all(
-          renterIds.map(async (uid) => {
-            try {
-              const profile = await getUserPublicProfile(uid);
-              return [uid, getProfileDisplayName(profile.full_name, profile.email)] as const;
-            } catch {
-              return [uid, uid] as const;
-            }
-          }),
-        );
-        const renterNameByUid = new Map(renterEntries);
-
-        const vehicleById = new Map(
-          vehicles.map((vehicle) => [
-            vehicle.vehicleid,
-            {
-              name: `${vehicle.brand} ${vehicle.model}`,
-              price: vehicle.price,
-            },
-          ]),
-        );
-
-        const mapped = rents.map<BookingRequestRow>((rent) => {
-          const vehicleInfo = vehicleById.get(rent.vehicle_id);
-          const start = new Date(rent.start_date);
-          const end = new Date(rent.end_date);
-          const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-          const amount = vehicleInfo ? vehicleInfo.price * days : 0;
-          const status: BookingRequestRow['status'] = end > new Date() ? 'Upcoming' : 'Completed';
-
-          return {
-            id: rent.rentid,
-            renterUid: rent.renter_uid,
-            renterName: renterNameByUid.get(rent.renter_uid) || rent.renter_uid,
-            vehicleName: vehicleInfo?.name || `Vehicle #${rent.vehicle_id}`,
-            dateRange: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
-            amountLabel: amount > 0 ? formatLkr(amount) : '-',
-            status,
-            pickupOption: rent.pickup_option || 'self_pickup',
-            deliveryAddress: rent.delivery_address || null,
-            insurancePlan: rent.insurance_plan || 'basic',
-            childSeatCount: rent.child_seat_count ?? 0,
-            note: rent.note || null,
-          };
-        });
-
-        mapped.sort((a, b) => (a.status === b.status ? 0 : a.status === 'Upcoming' ? -1 : 1));
-        setRequests(mapped);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load booking requests');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     void loadRequests();
-  }, []);
+  }, [loadRequests]);
+
+  const handleAccept = async (request: BookingRequestRow) => {
+    if (!request.id) {
+      setError('This booking request is missing an ID and cannot be accepted.');
+      return;
+    }
+
+    setSubmittingId(request.id);
+    setError('');
+    try {
+      await acceptOwnerRent(request.id);
+      setRequests((current) =>
+        current.map((item) =>
+          item.id === request.id
+            ? {
+                ...item,
+                status: 'Accepted',
+              }
+            : item,
+        ),
+      );
+      setSelectedRequest((current) =>
+        current?.id === request.id
+          ? {
+              ...current,
+              status: 'Accepted',
+            }
+          : current,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to accept booking request');
+    } finally {
+      setSubmittingId(null);
+    }
+  };
+
+  const updateRequestStatus = (requestId: string, status: BookingRequestRow['status']) => {
+    setRequests((current) =>
+      current.map((item) => (item.id === requestId ? { ...item, status } : item)),
+    );
+    setSelectedRequest((current) => (current?.id === requestId ? { ...current, status } : current));
+  };
+
+  const handleStatusAction = async (
+    request: BookingRequestRow,
+    action: 'cancel' | 'complete',
+  ) => {
+    if (!request.id) {
+      setError('This booking request is missing an ID and cannot be updated.');
+      return;
+    }
+
+    setSubmittingId(request.id);
+    setError('');
+    try {
+      if (action === 'cancel') {
+        await cancelOwnerRent(request.id);
+        updateRequestStatus(request.id, 'Cancelled');
+      } else {
+        await completeOwnerRent(request.id);
+        updateRequestStatus(request.id, 'Completed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to ${action} booking request`);
+    } finally {
+      setSubmittingId(null);
+    }
+  };
 
   const filtered = React.useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -144,7 +226,17 @@ const BookingRequests = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-bold text-gray-900">{request.renterName}</h3>
-                    <span className={`px-2 py-0.5 text-xs font-bold rounded uppercase tracking-wider ${request.status === 'Upcoming' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                    <span
+                      className={`px-2 py-0.5 text-xs font-bold rounded uppercase tracking-wider ${
+                        request.status === 'Pending'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : request.status === 'Accepted'
+                            ? 'bg-blue-100 text-blue-700'
+                            : request.status === 'Cancelled'
+                              ? 'bg-red-100 text-red-700'
+                            : 'bg-green-100 text-green-700'
+                      }`}
+                    >
                       {request.status}
                     </span>
                   </div>
@@ -156,6 +248,33 @@ const BookingRequests = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2 self-end md:self-center w-full md:w-auto">
+                {request.status === 'Pending' && (
+                  <button
+                    onClick={() => void handleAccept(request)}
+                    disabled={submittingId === request.id}
+                    className="flex-1 md:flex-none px-5 py-2 rounded-lg bg-[#003049] text-white text-sm font-bold hover:bg-[#002538] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {submittingId === request.id ? 'Accepting...' : 'Accept'}
+                  </button>
+                )}
+                {request.status === 'Accepted' && (
+                  <>
+                    <button
+                      onClick={() => void handleStatusAction(request, 'cancel')}
+                      disabled={submittingId === request.id}
+                      className="flex-1 md:flex-none px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {submittingId === request.id ? 'Updating...' : 'Cancel'}
+                    </button>
+                    <button
+                      onClick={() => void handleStatusAction(request, 'complete')}
+                      disabled={submittingId === request.id}
+                      className="flex-1 md:flex-none px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {submittingId === request.id ? 'Updating...' : 'Complete'}
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setSelectedRequest(request)}
                   className="flex-1 md:flex-none px-5 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition"
