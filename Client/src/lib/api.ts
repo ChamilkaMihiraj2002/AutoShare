@@ -1,4 +1,4 @@
-import type { AuthResponse, PublicUserProfile, RentApi, UserProfile, UserRole, VehicleApi } from '../types';
+import type { AuthResponse, OwnerEarningsOverview, PublicUserProfile, RentApi, UserProfile, UserRole, VehicleApi } from '../types';
 import { clearAuthToken, getAuthToken } from './auth';
 import { notifyProfileUpdated } from './profile';
 
@@ -148,6 +148,10 @@ export async function getMyRents(): Promise<RentApi[]> {
 export async function getOwnerRents(): Promise<RentApi[]> {
   const rents = await apiRequest<RawRentApi[]>('/rents/owner', 'GET', undefined, true);
   return rents.map(normalizeRent);
+}
+
+export async function getOwnerEarnings(): Promise<OwnerEarningsOverview> {
+  return apiRequest<OwnerEarningsOverview>('/rents/owner/earnings', 'GET', undefined, true);
 }
 
 export async function getMyVehicles(): Promise<VehicleApi[]> {

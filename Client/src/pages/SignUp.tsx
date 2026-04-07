@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Car, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { loginSocial } from '../lib/api';
-import { setAuthToken } from '../lib/auth';
+import { clearAuthToken, setAuthToken } from '../lib/auth';
 import { signInWithGooglePopup } from '../lib/firebase';
 import { getDefaultDashboardPath } from '../lib/profile';
 
@@ -32,6 +32,7 @@ const SignUp = () => {
         navigate('/signup/role', { state: { provider: 'google' } });
         return;
       }
+      clearAuthToken();
       setError(message);
     } finally {
       setIsGoogleSubmitting(false);
