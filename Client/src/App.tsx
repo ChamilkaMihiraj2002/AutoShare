@@ -38,7 +38,7 @@ const AppRoutes = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {!isOwnerDashboard && <Navbar />}
+      {!isOwnerDashboard && !hideChrome && <Navbar />}
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
