@@ -1,9 +1,32 @@
 
 import { MapPin, Calendar } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
   const navigate = useNavigate();
+  const [location, setLocation] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+
+    if (location.trim()) {
+      params.set('location', location.trim());
+    }
+
+    if (startDate) {
+      params.set('startDate', startDate);
+    }
+
+    if (endDate) {
+      params.set('endDate', endDate);
+    }
+
+    const query = params.toString();
+    navigate(query ? `/vehicles?${query}` : '/vehicles');
+  };
 
   return (
     <section className="relative h-[85vh] flex flex-col items-center justify-center text-center px-4">
@@ -22,25 +45,41 @@ const Hero = () => {
           <MapPin className="text-gray-400 mr-3" />
           <div className="text-left">
             <p className="text-xs font-bold text-gray-500 uppercase">Location</p>
-            <input type="text" placeholder="Where do you need a vehicle?" className="text-sm outline-none w-full" />
+            <input
+              type="text"
+              placeholder="Where do you need a vehicle?"
+              className="text-sm outline-none w-full"
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+            />
           </div>
         </div>
         <div className="flex-1 flex items-center px-4 py-3 border-r border-gray-100">
           <Calendar className="text-gray-400 mr-3" />
           <div className="text-left">
             <p className="text-xs font-bold text-gray-500 uppercase">Start Date</p>
-            <input type="date" className="text-sm outline-none w-full" />
+            <input
+              type="date"
+              className="text-sm outline-none w-full"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+            />
           </div>
         </div>
         <div className="flex-1 flex items-center px-4 py-3">
           <Calendar className="text-gray-400 mr-3" />
           <div className="text-left">
             <p className="text-xs font-bold text-gray-500 uppercase">End Date</p>
-            <input type="date" className="text-sm outline-none w-full" />
+            <input
+              type="date"
+              className="text-sm outline-none w-full"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+            />
           </div>
         </div>
         <button
-          onClick={() => navigate('/search')}
+          onClick={handleSearch}
           className="bg-orange-500 text-white px-10 py-4 rounded-xl font-bold hover:bg-orange-600 transition"
         >
           Search Vehicles

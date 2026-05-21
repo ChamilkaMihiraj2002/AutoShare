@@ -12,6 +12,9 @@ const DashboardNavbar = () => {
     const [roleLabel, setRoleLabel] = useState('Owner');
     const [avatarSrc, setAvatarSrc] = useState(DEFAULT_AVATAR);
     const [renterDestination, setRenterDestination] = useState('/');
+    const [canSwitchToRenter, setCanSwitchToRenter] = useState(false);
+
+    const closeProfileMenu = () => setShowProfileMenu(false);
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -20,7 +23,9 @@ const DashboardNavbar = () => {
                 setUserName(getProfileDisplayName(profile.full_name, profile.email));
                 setRoleLabel(getRoleLabel(profile.roles));
                 setAvatarSrc(resolveAvatarUrl(profile.avatar_url));
-                setRenterDestination(hasRole(profile.roles, 'renter') || hasRole(profile.roles, 'user') ? '/user-dashboard' : '/');
+                const renterAccess = hasRole(profile.roles, 'renter') || hasRole(profile.roles, 'user');
+                setCanSwitchToRenter(renterAccess);
+                setRenterDestination(renterAccess ? '/user-dashboard' : '/');
             } catch {
                 // Keep fallback labels if profile request fails.
             }
@@ -36,7 +41,9 @@ const DashboardNavbar = () => {
             setUserName(getProfileDisplayName(profile.full_name, profile.email));
             setRoleLabel(getRoleLabel(profile.roles));
             setAvatarSrc(resolveAvatarUrl(profile.avatar_url));
-            setRenterDestination(hasRole(profile.roles, 'renter') || hasRole(profile.roles, 'user') ? '/user-dashboard' : '/');
+            const renterAccess = hasRole(profile.roles, 'renter') || hasRole(profile.roles, 'user');
+            setCanSwitchToRenter(renterAccess);
+            setRenterDestination(renterAccess ? '/user-dashboard' : '/');
         };
 
         window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated as EventListener);
@@ -55,12 +62,6 @@ const DashboardNavbar = () => {
 
             {/* User Actions */}
             <div className="flex items-center gap-4">
-                <Link
-                    to={renterDestination}
-                    className="text-sm font-semibold text-gray-500 hover:text-gray-900 transition mr-4 hidden md:block"
-                >
-                    Switch to Renter
-                </Link>
                 <div className="relative">
                     <button
                         onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -76,16 +77,36 @@ const DashboardNavbar = () => {
                                 <p className="font-bold text-sm text-gray-900">{userName}</p>
                                 <p className="text-xs text-gray-500">{roleLabel}</p>
                             </div>
-                            <Link to="/dashboard/profile" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            {canSwitchToRenter && (
+                                <Link
+                                    to={renterDestination}
+                                    onClick={closeProfileMenu}
+                                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                    <User size={16} /> Switch to Renter
+                                </Link>
+                            )}
+                            <Link
+                                to="/dashboard/profile"
+                                onClick={closeProfileMenu}
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
                                 <User size={16} /> Profile
                             </Link>
-                            <Link to="/dashboard/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <Link
+                                to="/dashboard/settings"
+                                onClick={closeProfileMenu}
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
                                 <Settings size={16} /> Settings
                             </Link>
                             <div className="h-px bg-gray-50 my-2"></div>
                             <Link
                                 to="/signin"
-                                onClick={clearAuthToken}
+                                onClick={() => {
+                                    closeProfileMenu();
+                                    clearAuthToken();
+                                }}
                                 className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium"
                             >
                                 <LogOut size={16} /> Sign Out

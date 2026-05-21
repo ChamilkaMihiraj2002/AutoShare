@@ -42,6 +42,7 @@ const AppRoutes = () => {
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/vehicles" element={<SearchVehicles />} />
           <Route path="/search" element={<SearchVehicles />} />
           <Route path="/vehicles/:id" element={<VehicleDetails />} />
           <Route path="/vehicles/:id/book" element={<VehicleBooking />} />
