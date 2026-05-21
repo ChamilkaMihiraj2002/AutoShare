@@ -21,6 +21,7 @@ from app.schemas import (
 
 # Import CRUD operations
 from app.repositories.user import create_user_profile, get_user_profile_by_uid
+from app.services.audit_log import create_audit_log
 
 router = APIRouter(
     prefix="/auth",
@@ -43,6 +44,15 @@ async def register_email_user(
     try:
         user = auth.create_user(email=payload.email, password=payload.password)
     except Exception as e:
+        await create_audit_log(
+            db,
+            action="auth.register_email",
+            outcome="failure",
+            message="Email registration failed while creating Firebase user",
+            actor_email=payload.email,
+            entity_type="user",
+            metadata={"error": str(e)},
+        )
         raise HTTPException(status_code=400, detail=f"Firebase error: {e}")
 
     # B. Prepare profile data
@@ -62,6 +72,17 @@ async def register_email_user(
             email=user.email, 
             profile_data=profile_data
         )
+        await create_audit_log(
+            db,
+            action="auth.register_email",
+            outcome="success",
+            message="Email user registered successfully",
+            actor_uid=user.uid,
+            actor_email=user.email,
+            entity_type="user",
+            entity_id=user.uid,
+            metadata={"roles": profile_data.roles},
+        )
         return RegisterResponse(
             uid=user.uid, 
             email=user.email, 
@@ -74,6 +95,17 @@ async def register_email_user(
             auth.delete_user(user.uid)
         except:
             pass 
+        await create_audit_log(
+            db,
+            action="auth.register_email",
+            outcome="failure",
+            message="Email registration failed while creating MongoDB profile",
+            actor_uid=user.uid,
+            actor_email=user.email,
+            entity_type="user",
+            entity_id=user.uid,
+            metadata={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 
@@ -96,6 +128,16 @@ async def register_social_user(
     # A. Check if profile already exists
     existing_profile = await get_user_profile_by_uid(db, uid=user_uid)
     if existing_profile:
+        await create_audit_log(
+            db,
+            action="auth.register_social",
+            outcome="failure",
+            message="Social registration rejected because profile already exists",
+            actor_uid=user_uid,
+            actor_email=user_email,
+            entity_type="user",
+            entity_id=user_uid,
+        )
         raise HTTPException(
             status_code=400, 
             detail="User profile already exists. Please login instead."
@@ -109,6 +151,17 @@ async def register_social_user(
             email=user_email, 
             profile_data=payload
         )
+        await create_audit_log(
+            db,
+            action="auth.register_social",
+            outcome="success",
+            message="Social user profile created successfully",
+            actor_uid=user_uid,
+            actor_email=user_email,
+            entity_type="user",
+            entity_id=user_uid,
+            metadata={"roles": payload.roles},
+        )
         
         return RegisterResponse(
             uid=user_uid, 
@@ -117,6 +170,17 @@ async def register_social_user(
             profile=payload
         )
     except Exception as e:
+        await create_audit_log(
+            db,
+            action="auth.register_social",
+            outcome="failure",
+            message="Social registration failed while creating MongoDB profile",
+            actor_uid=user_uid,
+            actor_email=user_email,
+            entity_type="user",
+            entity_id=user_uid,
+            metadata={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
 
@@ -124,7 +188,10 @@ async def register_social_user(
 # 3. LOGIN: EMAIL & PASSWORD
 # ==========================================
 @router.post("/login", response_model=AuthResponse)
-def login_user(payload: LoginRequest):
+async def login_user(
+    payload: LoginRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
     """
     Exchanges Email/Password for a Firebase ID Token via REST API.
     """
@@ -142,6 +209,15 @@ def login_user(payload: LoginRequest):
     try:
         resp = requests.post(url, json=data, timeout=10)
     except requests.RequestException as e:
+        await create_audit_log(
+            db,
+            action="auth.login_email",
+            outcome="failure",
+            message="Email login failed while calling auth provider",
+            actor_email=payload.email,
+            entity_type="user",
+            metadata={"error": str(e)},
+        )
         raise HTTPException(status_code=502, detail=f"Auth provider error: {e}")
 
     if resp.status_code != 200:
@@ -149,9 +225,28 @@ def login_user(payload: LoginRequest):
             err = resp.json()
         except:
             err = {"error": resp.text}
+        await create_audit_log(
+            db,
+            action="auth.login_email",
+            outcome="failure",
+            message="Email login rejected by auth provider",
+            actor_email=payload.email,
+            entity_type="user",
+            metadata={"error": err},
+        )
         raise HTTPException(status_code=401, detail=err)
 
     body = resp.json()
+    await create_audit_log(
+        db,
+        action="auth.login_email",
+        outcome="success",
+        message="Email login succeeded",
+        actor_uid=body.get("localId"),
+        actor_email=payload.email,
+        entity_type="user",
+        entity_id=body.get("localId"),
+    )
     return AuthResponse(
         uid=body.get("localId"), 
         email=payload.email, 
@@ -177,9 +272,30 @@ async def login_social_user(
     profile = await get_user_profile_by_uid(db, uid=user_uid)
     
     if not profile:
+        await create_audit_log(
+            db,
+            action="auth.login_social",
+            outcome="failure",
+            message="Social login failed because user profile was not found",
+            actor_uid=user_uid,
+            actor_email=decoded_token.get("email"),
+            entity_type="user",
+            entity_id=user_uid,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="User profile not found. Please complete registration."
         )
-        
+
+    await create_audit_log(
+        db,
+        action="auth.login_social",
+        outcome="success",
+        message="Social login succeeded",
+        actor_uid=user_uid,
+        actor_email=decoded_token.get("email"),
+        entity_type="user",
+        entity_id=user_uid,
+    )
+
     return profile

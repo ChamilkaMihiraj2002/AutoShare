@@ -1,28 +1,31 @@
-version: '3.8'
-
 services:
-
   web:
     # Build the image from the Dockerfile in the current directory (.)
     build: .
-    
+
     # Name the container
     container_name: AutoShare_Server
-    
+
     ports:
       - "8000:8000"
-      
+
     volumes:
       - ./app:/app
       - ./uploads:/uploads
       - ./secrets:/secrets:ro
-      
+
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
     env_file:
       - .env
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     environment:
+      # Inside Docker, localhost points at the app container itself.
+      # Override the host-style default from `.env` with a container-safe value.
+      MONGODB_URL: ${DOCKER_MONGODB_URL:-mongodb://admin:admin123@host.docker.internal:27017/}
       FIREBASE_CREDENTIAL_PATH: /secrets/firebase-service-account.json
       # Optionally loaded from .env; defaults to empty if not set
       FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}

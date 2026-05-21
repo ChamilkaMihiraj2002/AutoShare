@@ -17,6 +17,7 @@ from app.repositories.rent import (
 )
 from app.repositories.vehicle import get_vehicle_by_id, update_vehicle
 from app.services.owner_earnings import get_owner_earnings_overview
+from app.services.audit_log import create_audit_log
 
 router = APIRouter(
     prefix="/rents",
@@ -42,8 +43,27 @@ async def create_rent_endpoint(
     renter_uid = decoded_token.get("uid")
     try:
         created = await create_rent(db=db, renter_uid=renter_uid, rent_doc=payload.model_dump())
+        await create_audit_log(
+            db,
+            action="rents.create",
+            outcome="success",
+            message="Rent request created",
+            actor_uid=renter_uid,
+            entity_type="rent",
+            entity_id=created.get("_id"),
+            metadata={"vehicle_id": created.get("vehicle_id"), "owner_uid": created.get("owner_uid")},
+        )
         return created
     except Exception as e:
+        await create_audit_log(
+            db,
+            action="rents.create",
+            outcome="failure",
+            message="Rent request creation failed",
+            actor_uid=renter_uid,
+            entity_type="rent",
+            metadata={"error": str(e), "vehicle_id": payload.vehicle_id, "owner_uid": payload.owner_uid},
+        )
         raise HTTPException(status_code=500, detail=f"DB error: {e}")
 
 
@@ -100,9 +120,20 @@ async def patch_rent(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     renter_uid = decoded_token.get("uid")
-    updated = await update_rent(db=db, renter_uid=renter_uid, rent_id=rent_id, update_fields=payload.model_dump(exclude_unset=True))
+    update_fields = payload.model_dump(exclude_unset=True)
+    updated = await update_rent(db=db, renter_uid=renter_uid, rent_id=rent_id, update_fields=update_fields)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="rents.update",
+        outcome="success",
+        message="Rent request updated",
+        actor_uid=renter_uid,
+        entity_type="rent",
+        entity_id=rent_id,
+        metadata={"updated_fields": sorted(update_fields.keys())},
+    )
     return updated
 
 
@@ -131,6 +162,16 @@ async def accept_rent_request(
     updated_rent = await accept_rent(db=db, owner_uid=owner_uid, rent_id=rent_id)
     if not updated_rent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="rents.accept",
+        outcome="success",
+        message="Rent request accepted",
+        actor_uid=owner_uid,
+        entity_type="rent",
+        entity_id=rent_id,
+        metadata={"vehicle_id": rent["vehicle_id"]},
+    )
     return updated_rent
 
 
@@ -155,6 +196,16 @@ async def cancel_rent_request(
     updated_rent = await set_rent_status(db=db, owner_uid=owner_uid, rent_id=rent_id, booking_status="cancelled")
     if not updated_rent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="rents.cancel",
+        outcome="success",
+        message="Rent request cancelled",
+        actor_uid=owner_uid,
+        entity_type="rent",
+        entity_id=rent_id,
+        metadata={"vehicle_id": rent["vehicle_id"]},
+    )
     return updated_rent
 
 
@@ -179,6 +230,16 @@ async def complete_rent_request(
     updated_rent = await set_rent_status(db=db, owner_uid=owner_uid, rent_id=rent_id, booking_status="completed")
     if not updated_rent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="rents.complete",
+        outcome="success",
+        message="Rent request completed",
+        actor_uid=owner_uid,
+        entity_type="rent",
+        entity_id=rent_id,
+        metadata={"vehicle_id": rent["vehicle_id"]},
+    )
     return updated_rent
 
 
@@ -192,4 +253,13 @@ async def remove_rent(
     ok = await delete_rent(db=db, renter_uid=renter_uid, rent_id=rent_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="rents.delete",
+        outcome="success",
+        message="Rent request deleted",
+        actor_uid=renter_uid,
+        entity_type="rent",
+        entity_id=rent_id,
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -25,12 +25,24 @@ docker run -d \
   mongo:latest
 ```
 
-For that container, use this server config in `Server/.env`:
+For that container, use this server config in `Server/.env` when running the
+server directly on your Mac:
 
 ```env
 MONGODB_URL=mongodb://admin:admin123@localhost:27017/AutoShare?authSource=admin
 MONGODB_DB_NAME=AutoShare
 ```
+
+If you run the API with `docker compose up`, the app container cannot use
+`localhost` to reach MongoDB on your host. This repo's `docker-compose.yml`
+now overrides the connection string to:
+
+```env
+mongodb://admin:admin123@host.docker.internal:27017/
+```
+
+If you need a different Docker-only URI, set `DOCKER_MONGODB_URL` in
+`Server/.env` before starting Compose.
 
 To copy the existing Atlas data into the local container:
 

@@ -26,6 +26,8 @@ async def test_create_and_list_my_vehicles(fake_db):
     assert created is not None
     assert created["_id"] == "rv1"
     assert created["owner_uid"] == owner
+    logs = list(fake_db["system_logs"]._store.values())
+    assert any(log["action"] == "vehicles.create" and log["entity_id"] == "rv1" for log in logs)
 
     # list
     docs = await vehicles_router.list_my_vehicles(decoded_token={"uid": owner}, db=fake_db)
@@ -61,6 +63,8 @@ async def test_patch_and_delete_vehicle_behavior(fake_db):
     updated = await vehicles_router.patch_vehicle(vehicle_id=vid, payload=payload, decoded_token={"uid": owner}, db=fake_db)
     assert updated is not None
     assert updated["price"] == 99.9
+    logs = list(fake_db["system_logs"]._store.values())
+    assert any(log["action"] == "vehicles.update" and log["entity_id"] == vid for log in logs)
 
     # patch nonexistent -> raises
     with pytest.raises(HTTPException):
@@ -73,3 +77,5 @@ async def test_patch_and_delete_vehicle_behavior(fake_db):
     # delete existing -> returns Response with status 204
     resp = await vehicles_router.remove_vehicle(vehicle_id=vid, decoded_token={"uid": owner}, db=fake_db)
     assert getattr(resp, "status_code", None) == 204
+    logs = list(fake_db["system_logs"]._store.values())
+    assert any(log["action"] == "vehicles.delete" and log["entity_id"] == vid for log in logs)
