@@ -5,6 +5,7 @@ import { clearAuthToken } from '../../lib/auth';
 import { getMyProfile } from '../../lib/api';
 import { DEFAULT_AVATAR, getProfileDisplayName, getRoleLabel, hasRole, PROFILE_UPDATED_EVENT, resolveAvatarUrl } from '../../lib/profile';
 import type { UserProfile } from '../../types';
+import NotificationBell from '../notifications/NotificationBell';
 
 const DashboardNavbar = () => {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -62,6 +63,7 @@ const DashboardNavbar = () => {
 
             {/* User Actions */}
             <div className="flex items-center gap-4">
+                <NotificationBell mode="owner" pageRoute="/dashboard/notifications" />
                 <div className="relative">
                     <button
                         onClick={() => setShowProfileMenu(!showProfileMenu)}

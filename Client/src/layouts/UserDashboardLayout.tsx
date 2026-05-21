@@ -1,11 +1,13 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { User, Settings } from 'lucide-react';
+import { User, Settings, Bell } from 'lucide-react';
 
 const UserDashboardLayout = () => {
     const location = useLocation();
     const normalizedPath = (location.pathname.replace(/\/+$/, '') || '/user-dashboard').toLowerCase();
     const showProfileChrome =
-        normalizedPath === '/user-dashboard' || normalizedPath === '/user-dashboard/settings';
+        normalizedPath === '/user-dashboard' ||
+        normalizedPath === '/user-dashboard/settings' ||
+        normalizedPath === '/user-dashboard/notifications';
 
     return (
         <div className="min-h-screen bg-gray-50 pt-24 pb-12">
@@ -35,6 +37,13 @@ const UserDashboardLayout = () => {
                             >
                                 <Settings size={18} />
                                 Settings
+                            </NavLink>
+                            <NavLink
+                                to="/user-dashboard/notifications"
+                                className={({ isActive }) => `flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all ${isActive ? "bg-[#003049] text-white shadow-md" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"}`}
+                            >
+                                <Bell size={18} />
+                                Notifications
                             </NavLink>
                         </div>
                     </>

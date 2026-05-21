@@ -5,6 +5,7 @@ import { clearAuthToken, getAuthToken } from '../../lib/auth';
 import { getMyProfile } from '../../lib/api';
 import { DEFAULT_AVATAR, getDefaultDashboardPath, getProfileDisplayName, hasRole, PROFILE_UPDATED_EVENT, resolveAvatarUrl } from '../../lib/profile';
 import type { UserProfile } from '../../types';
+import NotificationBell from '../notifications/NotificationBell';
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -136,6 +137,10 @@ const Navbar = () => {
       <div className="hidden md:flex items-center gap-6">
         {isLoggedIn ? (
           <>
+            <NotificationBell
+              mode={isUserDashboard ? 'renter' : canSwitchToOwner ? 'owner' : 'renter'}
+              pageRoute={isUserDashboard ? '/user-dashboard/notifications' : canSwitchToOwner ? '/dashboard/notifications' : '/user-dashboard/notifications'}
+            />
             <div className="relative">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}

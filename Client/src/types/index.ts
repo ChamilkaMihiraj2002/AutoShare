@@ -114,3 +114,20 @@ export interface OwnerEarningsOverview {
   summary: OwnerEarningsSummary;
   transactions: OwnerEarningsTransaction[];
 }
+
+export type AppNotificationType =
+  | 'booking_request'
+  | 'upcoming_booking'
+  | 'booking_cancelled'
+  | 'vehicle_handover'
+  | 'message';
+
+export interface AppNotification {
+  id: string;
+  type: AppNotificationType;
+  title: string;
+  description: string;
+  timestamp: string;
+  route: string;
+  entityId: string;
+}
