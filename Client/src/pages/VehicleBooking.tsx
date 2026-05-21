@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Lock, Calendar, MapPin, Navigation } from 'lucide-react';
 import MapWidget from '../components/map/MapWidget';
 import LoadingScreen from '../components/common/LoadingScreen';
@@ -12,9 +12,15 @@ interface BookingVehicle extends Car {
   ownerUid: string;
 }
 
+type VehicleBookingRouteState = {
+  startDate?: string;
+  endDate?: string;
+};
+
 const VehicleBooking: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const locationState = useLocation().state as VehicleBookingRouteState | null;
 
   const [vehicle, setVehicle] = useState<BookingVehicle | null>(null);
   const [loadingVehicle, setLoadingVehicle] = useState(true);
@@ -25,8 +31,8 @@ const VehicleBooking: React.FC = () => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
 
-  const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [endDate, setEndDate] = useState<string>(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState<string>(locationState?.startDate || new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState<string>(locationState?.endDate || new Date(Date.now() + 86400000).toISOString().slice(0, 10));
   const [location, setLocation] = useState<string>('');
   const [isEditingDates, setIsEditingDates] = useState(false);
   const [isEditingLocation, setIsEditingLocation] = useState(false);

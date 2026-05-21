@@ -36,6 +36,9 @@ const DashboardLayout = () => {
                     <NavLink to="/dashboard/requests" className={({ isActive }) => `pb-4 whitespace-nowrap transition-colors ${isActive ? "text-[#003049] border-b-2 border-[#003049] font-bold" : "text-gray-500 hover:text-gray-900 font-medium border-b-2 border-transparent"}`}>
                         Booking Requests
                     </NavLink>
+                    <NavLink to="/dashboard/notifications" className={({ isActive }) => `pb-4 whitespace-nowrap transition-colors ${isActive ? "text-[#003049] border-b-2 border-[#003049] font-bold" : "text-gray-500 hover:text-gray-900 font-medium border-b-2 border-transparent"}`}>
+                        Notifications
+                    </NavLink>
                     <NavLink to="/dashboard/earnings" className={({ isActive }) => `pb-4 whitespace-nowrap transition-colors ${isActive ? "text-[#003049] border-b-2 border-[#003049] font-bold" : "text-gray-500 hover:text-gray-900 font-medium border-b-2 border-transparent"}`}>
                         Earnings
                     </NavLink>

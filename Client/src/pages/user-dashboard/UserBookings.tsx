@@ -70,8 +70,13 @@ const UserBookings = () => {
         }
     };
 
-    const formatBookingStatus = (endDate: string) => {
-        return new Date(endDate) > new Date() ? 'Upcoming' : 'Completed';
+    const formatBookingStatus = (booking: RentApi) => {
+        if (booking.booking_status === 'cancelled') return 'Cancelled';
+        if (booking.booking_status === 'completed') return 'Completed';
+        if (booking.booking_status === 'accepted' && new Date(booking.end_date) <= new Date()) {
+            return 'Completed';
+        }
+        return 'Upcoming';
     };
 
     if (loading) {
@@ -88,7 +93,7 @@ const UserBookings = () => {
 
             <div className="space-y-4">
                 {bookings.map((booking) => {
-                    const status = formatBookingStatus(booking.end_date);
+                    const status = formatBookingStatus(booking);
                     const display = displayByRentId.get(booking.rentid);
                     const vehicleName = display?.vehicleName || 'Vehicle';
                     const ownerName = display?.ownerName || 'Owner';

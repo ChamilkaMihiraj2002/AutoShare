@@ -2,7 +2,6 @@ import React from 'react';
 import { Calendar } from 'lucide-react';
 
 import StatCard from '../../components/dashboard/StatCard';
-import { recentActivity } from '../../data/mockData';
 import { useOwnerEarnings } from '../../hooks/useOwnerEarnings';
 import { getMyVehicles, getOwnerRents, getUserPublicProfile } from '../../lib/api';
 import { buildOwnerDashboardStats } from '../../lib/ownerEarnings';
@@ -53,7 +52,7 @@ const OwnerDashboard = () => {
                 );
 
                 const upcoming = rents
-                    .filter((rent) => new Date(rent.end_date) > new Date())
+                    .filter((rent) => rent.booking_status === 'pending')
                     .map((rent) => {
                         const vehicle = vehicleById.get(rent.vehicle_id);
                         const start = new Date(rent.start_date);
@@ -131,24 +130,6 @@ const OwnerDashboard = () => {
                 )}
             </div>
 
-            {/* Recent Activity */}
-            <div>
-                <h2 className="text-lg font-bold text-[#003049] mb-4">Recent Activity</h2>
-                <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-                    {recentActivity.map((activity) => (
-                        <div key={activity.id} className="p-4 flex items-center gap-4 hover:bg-gray-50 transition">
-                            <div className={`p-3 ${activity.bgColor} ${activity.iconColor} rounded-xl`}>
-                                <activity.icon size={18} />
-                            </div>
-                            <div className="flex-1">
-                                <p className="font-bold text-gray-900 text-sm">{activity.title}</p>
-                                <p className="text-xs text-gray-500">{activity.description}</p>
-                            </div>
-                            <span className="text-xs font-medium text-gray-400">{activity.time}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 };

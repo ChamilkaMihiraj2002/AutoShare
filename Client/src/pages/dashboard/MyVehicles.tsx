@@ -205,25 +205,25 @@ const MyVehicles = () => {
   return (
     <div className="space-y-6 relative">
       <LoadingOverlay show={creating} message="Creating vehicle..." />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {vehicles.map((vehicle) => (
           <div key={vehicle.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition group">
-            <div className="h-48 bg-gray-200 relative">
+            <div className="h-40 bg-gray-200 relative">
               <img src={vehicle.image} alt={vehicle.name} className="w-full h-full object-cover" />
               <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-sm">
                 <Star size={12} className="text-orange-500 fill-orange-500" /> {vehicle.rating}
               </div>
             </div>
-            <div className="p-5">
+            <div className="p-4">
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h3 className="font-bold text-lg text-gray-900">{vehicle.name}</h3>
+                  <h3 className="font-bold text-base text-gray-900">{vehicle.name}</h3>
                   <p className="text-xs text-gray-500">{vehicle.year} • {vehicle.type}</p>
                 </div>
                 <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">{vehicle.status}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 my-4 py-4 border-y border-gray-50">
+              <div className="grid grid-cols-2 gap-3 my-3 py-3 border-y border-gray-50">
                 <div className="flex items-center gap-2 text-gray-600 text-sm">
                   <Car size={16} />
                   <span>{vehicle.trips} Trips</span>
@@ -261,7 +261,7 @@ const MyVehicles = () => {
 
         <button
           onClick={openAddModal}
-          className="bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-8 hover:bg-white hover:border-[#003049] hover:text-[#003049] transition group h-full min-h-[300px]"
+          className="bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-6 hover:bg-white hover:border-[#003049] hover:text-[#003049] transition group h-full min-h-[260px]"
         >
           <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition">
             <Plus size={32} className="text-gray-400 group-hover:text-[#003049]" />

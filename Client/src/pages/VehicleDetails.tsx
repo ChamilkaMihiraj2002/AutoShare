@@ -8,6 +8,11 @@ import { formatLkr } from '../lib/currency';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
 import type { Car } from '../types';
 
+type VehicleBookingRouteState = {
+    startDate?: string;
+    endDate?: string;
+};
+
 const VehicleDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -96,7 +101,12 @@ const VehicleDetails: React.FC = () => {
 
 
     const handleBookNow = () => {
-        navigate(`/vehicles/${vehicle.id}/book`);
+        navigate(`/vehicles/${vehicle.id}/book`, {
+            state: {
+                startDate,
+                endDate,
+            } satisfies VehicleBookingRouteState,
+        });
     };
 
     return (
