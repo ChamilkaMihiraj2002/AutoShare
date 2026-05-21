@@ -13,6 +13,7 @@ from app.repositories.user import (
     delete_user_profile_by_uid,
 )
 from app.schemas import UserProfile, UserProfileUpdate, PublicUserProfile
+from app.services.audit_log import create_audit_log
 
 router = APIRouter(
     prefix="/users",
@@ -69,6 +70,17 @@ async def update_current_user(
     updated = await update_user_profile_by_uid(db, uid=user_uid, update_data=update_dict)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    await create_audit_log(
+        db,
+        action="users.update_profile",
+        outcome="success",
+        message="User profile updated",
+        actor_uid=user_uid,
+        actor_email=updated.get("email"),
+        entity_type="user",
+        entity_id=user_uid,
+        metadata={"updated_fields": sorted(update_dict.keys())},
+    )
     return updated
 
 
@@ -98,9 +110,20 @@ async def delete_current_user(
     Returns 204 No Content on success.
     """
     user_uid = decoded_token.get("uid")
+    existing = await get_user_profile_by_uid(db, uid=user_uid)
     deleted = await delete_user_profile_by_uid(db, uid=user_uid)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    await create_audit_log(
+        db,
+        action="users.delete_profile",
+        outcome="success",
+        message="User profile deleted",
+        actor_uid=user_uid,
+        actor_email=(existing or {}).get("email"),
+        entity_type="user",
+        entity_id=user_uid,
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -133,4 +156,15 @@ async def upload_avatar(
     updated = await update_user_profile_by_uid(db, uid=user_uid, update_data={"avatar_url": avatar_url})
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    await create_audit_log(
+        db,
+        action="users.upload_avatar",
+        outcome="success",
+        message="User avatar uploaded",
+        actor_uid=user_uid,
+        actor_email=updated.get("email"),
+        entity_type="user",
+        entity_id=user_uid,
+        metadata={"avatar_url": avatar_url},
+    )
     return updated

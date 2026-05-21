@@ -16,6 +16,7 @@ const Navbar = () => {
   const [dashboardPath, setDashboardPath] = useState('/user-dashboard');
   const [settingsPath, setSettingsPath] = useState('/user-dashboard/settings');
   const [canSwitchToOwner, setCanSwitchToOwner] = useState(false);
+  const [hasRenterAccess, setHasRenterAccess] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === "/";
   const isUserDashboard = location.pathname.startsWith('/user-dashboard');
@@ -40,18 +41,22 @@ const Navbar = () => {
         setDashboardPath('/user-dashboard');
         setSettingsPath('/user-dashboard/settings');
         setCanSwitchToOwner(false);
+        setHasRenterAccess(false);
         return;
       }
 
       try {
         const profile = await getMyProfile();
+        const ownerAccount = hasRole(profile.roles, 'vehicle_owner');
+        const renterAccess = hasRole(profile.roles, 'renter') || hasRole(profile.roles, 'user');
         setIsLoggedIn(true);
+        setHasRenterAccess(renterAccess);
         setProfileName(getProfileDisplayName(profile.full_name, profile.email));
         setProfileEmail(profile.email);
         setProfileAvatar(resolveAvatarUrl(profile.avatar_url));
         setDashboardPath(getDefaultDashboardPath(profile));
         setSettingsPath(getDefaultDashboardPath(profile) === '/dashboard' ? '/dashboard/settings' : '/user-dashboard/settings');
-        setCanSwitchToOwner(hasRole(profile.roles, 'vehicle_owner'));
+        setCanSwitchToOwner(ownerAccount);
       } catch {
         setIsLoggedIn(false);
         setProfileName('User');
@@ -60,6 +65,7 @@ const Navbar = () => {
         setDashboardPath('/user-dashboard');
         setSettingsPath('/user-dashboard/settings');
         setCanSwitchToOwner(false);
+        setHasRenterAccess(false);
       }
     };
 
@@ -71,13 +77,16 @@ const Navbar = () => {
       const profile = (event as CustomEvent<UserProfile>).detail;
       if (!profile) return;
 
+      const ownerAccount = hasRole(profile.roles, 'vehicle_owner');
+      const renterAccess = hasRole(profile.roles, 'renter') || hasRole(profile.roles, 'user');
       setIsLoggedIn(true);
+      setHasRenterAccess(renterAccess);
       setProfileName(getProfileDisplayName(profile.full_name, profile.email));
       setProfileEmail(profile.email);
       setProfileAvatar(resolveAvatarUrl(profile.avatar_url));
       setDashboardPath(getDefaultDashboardPath(profile));
       setSettingsPath(getDefaultDashboardPath(profile) === '/dashboard' ? '/dashboard/settings' : '/user-dashboard/settings');
-      setCanSwitchToOwner(hasRole(profile.roles, 'vehicle_owner'));
+      setCanSwitchToOwner(ownerAccount);
     };
 
     window.addEventListener(PROFILE_UPDATED_EVENT, handleProfileUpdated as EventListener);
@@ -90,6 +99,9 @@ const Navbar = () => {
     : "sticky top-0 bg-white/80 backdrop-blur-md text-gray-800 border-b border-gray-100";
 
   const closeMenu = () => setMenuOpen(false);
+  const showRenterLinks = isLoggedIn && hasRenterAccess;
+  const isRenterView = isLoggedIn && isUserDashboard;
+  const closeProfileMenu = () => setShowProfileMenu(false);
 
   return (
     <nav className={`w-full z-[100] flex items-center justify-between px-6 md:px-12 py-4 transition-all duration-300 ${navBaseClass}`}>
@@ -104,23 +116,26 @@ const Navbar = () => {
       {/* Desktop Menu */}
       <div className="hidden md:flex gap-8 text-sm font-semibold uppercase tracking-wide">
         <Link to="/" className="hover:text-orange-500 transition-colors">Home</Link>
-        <Link to="/services" className="hover:text-orange-500 transition-colors">Services</Link>
-        <Link to="/about" className="hover:text-orange-500 transition-colors">About</Link>
-        <Link to="/contact" className="hover:text-orange-500 transition-colors">Contact Us</Link>
+        <Link to="/vehicles" className="hover:text-orange-500 transition-colors">Vehicles</Link>
+        {showRenterLinks && (
+          <>
+            <Link to="/user-dashboard/bookings" className="hover:text-orange-500 transition-colors">Bookings</Link>
+            <Link to="/user-dashboard/saved" className="hover:text-orange-500 transition-colors">Saved</Link>
+          </>
+        )}
+        {!isLoggedIn && (
+          <>
+            <Link to="/services" className="hover:text-orange-500 transition-colors">Services</Link>
+            <Link to="/about" className="hover:text-orange-500 transition-colors">About</Link>
+            <Link to="/contact" className="hover:text-orange-500 transition-colors">Contact Us</Link>
+          </>
+        )}
       </div>
 
       {/* Auth Buttons / Profile */}
       <div className="hidden md:flex items-center gap-6">
         {isLoggedIn ? (
           <>
-            {isUserDashboard && canSwitchToOwner && (
-              <Link
-                to="/dashboard"
-                className="text-sm font-semibold text-gray-500 hover:text-orange-600 transition"
-              >
-                Switch to Vehicle Owner
-              </Link>
-            )}
             <div className="relative">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -137,16 +152,38 @@ const Navbar = () => {
                     <p className="font-bold text-sm text-gray-900">{profileName}</p>
                     <p className="text-xs text-gray-500">{profileEmail}</p>
                   </div>
-                  <Link to={dashboardPath} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">
-                    <User size={16} /> My Profile
-                  </Link>
-                  <Link to={settingsPath} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium">
+                  {isUserDashboard && canSwitchToOwner && (
+                    <Link
+                      to="/dashboard"
+                      onClick={closeProfileMenu}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                    >
+                      <User size={16} /> Switch to Vehicle Owner
+                    </Link>
+                  )}
+                  {!isRenterView && (
+                    <Link
+                      to={dashboardPath}
+                      onClick={closeProfileMenu}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                    >
+                      <User size={16} /> My Profile
+                    </Link>
+                  )}
+                  <Link
+                    to={settingsPath}
+                    onClick={closeProfileMenu}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                  >
                     <Settings size={16} /> Settings
                   </Link>
                   <div className="h-px bg-gray-50 my-2"></div>
                   <Link
                     to="/signin"
-                    onClick={clearAuthToken}
+                    onClick={() => {
+                      closeProfileMenu();
+                      clearAuthToken();
+                    }}
                     className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium"
                   >
                     <LogOut size={16} /> Sign Out
@@ -187,9 +224,20 @@ const Navbar = () => {
 
             <div className="flex flex-col gap-5 font-bold text-lg">
               <Link to="/" className="hover:text-orange-500" onClick={closeMenu}>Home</Link>
-              <Link to="/services" className="hover:text-orange-500" onClick={closeMenu}>Services</Link>
-              <Link to="/about" className="hover:text-orange-500" onClick={closeMenu}>About</Link>
-              <Link to="/contact" className="hover:text-orange-500" onClick={closeMenu}>Contact Us</Link>
+              <Link to="/vehicles" className="hover:text-orange-500" onClick={closeMenu}>Vehicles</Link>
+              {showRenterLinks && (
+                <>
+                  <Link to="/user-dashboard/bookings" className="hover:text-orange-500" onClick={closeMenu}>Bookings</Link>
+                  <Link to="/user-dashboard/saved" className="hover:text-orange-500" onClick={closeMenu}>Saved</Link>
+                </>
+              )}
+              {!isLoggedIn && (
+                <>
+                  <Link to="/services" className="hover:text-orange-500" onClick={closeMenu}>Services</Link>
+                  <Link to="/about" className="hover:text-orange-500" onClick={closeMenu}>About</Link>
+                  <Link to="/contact" className="hover:text-orange-500" onClick={closeMenu}>Contact Us</Link>
+                </>
+              )}
               {isLoggedIn && (
                 <Link to={dashboardPath} className="hover:text-orange-500" onClick={closeMenu}>My Dashboard</Link>
               )}

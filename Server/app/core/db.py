@@ -40,6 +40,13 @@ async def connect_to_mongo():
         # Force a quick round-trip to detect auth issues early
         await db.client.admin.command("ping")
         db.db = db.client[db_name]
+        try:
+            await db.db["system_logs"].create_index("created_at")
+            await db.db["system_logs"].create_index([("event_type", 1), ("created_at", -1)])
+            await db.db["system_logs"].create_index([("actor_uid", 1), ("created_at", -1)])
+        except Exception:
+            # Index creation should not block app startup in tests or restricted environments.
+            pass
         print(f"Connected to MongoDB. Using database: {db_name}")
     except Exception as e:
         masked = _mask_mongo_url(mongodb_url)

@@ -39,6 +39,22 @@ async def test_update_current_user_not_found_raises(fake_db):
 
 
 @pytest.mark.asyncio
+async def test_update_current_user_writes_audit_log(fake_db):
+    from app.schemas import UserProfileUpdate
+
+    uid = "audit_user"
+    await fake_db["users"].insert_one(
+        {"_id": uid, "email": "audit@example.com", "address": "A", "nic": "N", "phone": "P", "roles": ["user"]}
+    )
+
+    payload = UserProfileUpdate(address="Updated address")
+    await users_router.update_current_user(payload, decoded_token={"uid": uid}, db=fake_db)
+
+    logs = list(fake_db["system_logs"]._store.values())
+    assert any(log["action"] == "users.update_profile" and log["actor_uid"] == uid for log in logs)
+
+
+@pytest.mark.asyncio
 async def test_delete_current_user_behavior(fake_db):
     uid = "del_uid"
     # not present -> raises
@@ -52,3 +68,5 @@ async def test_delete_current_user_behavior(fake_db):
     resp = await users_router.delete_current_user(decoded_token=decoded_token, db=fake_db)
     # FastAPI handler returns a Response object; check status_code
     assert getattr(resp, "status_code", None) == 204
+    logs = list(fake_db["system_logs"]._store.values())
+    assert any(log["action"] == "users.delete_profile" and log["actor_uid"] == uid for log in logs)

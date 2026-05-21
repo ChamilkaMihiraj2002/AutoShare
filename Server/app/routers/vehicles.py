@@ -17,6 +17,7 @@ from app.repositories.vehicle import (
     update_vehicle,
     delete_vehicle,
 )
+from app.services.audit_log import create_audit_log
 
 router = APIRouter(
     prefix="/vehicles",
@@ -50,8 +51,27 @@ async def create_vehicle_endpoint(
     owner_uid = decoded_token.get("uid")
     try:
         created = await create_vehicle(db=db, owner_uid=owner_uid, vehicle_doc=payload.model_dump())
+        await create_audit_log(
+            db,
+            action="vehicles.create",
+            outcome="success",
+            message="Vehicle created",
+            actor_uid=owner_uid,
+            entity_type="vehicle",
+            entity_id=created.get("_id"),
+            metadata={"brand": created.get("brand"), "model": created.get("model")},
+        )
         return created
     except Exception as e:
+        await create_audit_log(
+            db,
+            action="vehicles.create",
+            outcome="failure",
+            message="Vehicle creation failed",
+            actor_uid=owner_uid,
+            entity_type="vehicle",
+            metadata={"error": str(e)},
+        )
         raise HTTPException(status_code=500, detail=f"DB error: {e}")
 
 
@@ -87,9 +107,20 @@ async def patch_vehicle(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     owner_uid = decoded_token.get("uid")
-    updated = await update_vehicle(db=db, owner_uid=owner_uid, vehicle_id=vehicle_id, update_fields=payload.model_dump(exclude_unset=True))
+    update_fields = payload.model_dump(exclude_unset=True)
+    updated = await update_vehicle(db=db, owner_uid=owner_uid, vehicle_id=vehicle_id, update_fields=update_fields)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="vehicles.update",
+        outcome="success",
+        message="Vehicle updated",
+        actor_uid=owner_uid,
+        entity_type="vehicle",
+        entity_id=vehicle_id,
+        metadata={"updated_fields": sorted(update_fields.keys())},
+    )
     return updated
 
 
@@ -103,6 +134,15 @@ async def remove_vehicle(
     ok = await delete_vehicle(db=db, owner_uid=owner_uid, vehicle_id=vehicle_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="vehicles.delete",
+        outcome="success",
+        message="Vehicle deleted",
+        actor_uid=owner_uid,
+        entity_type="vehicle",
+        entity_id=vehicle_id,
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -148,6 +188,16 @@ async def upload_vehicle_image(
     )
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="vehicles.upload_image",
+        outcome="success",
+        message="Vehicle image uploaded",
+        actor_uid=owner_uid,
+        entity_type="vehicle",
+        entity_id=vehicle_id,
+        metadata={"image_url": image_url},
+    )
     return updated
 
 
@@ -192,5 +242,16 @@ async def delete_vehicle_image(
         file_path = VEHICLE_UPLOAD_DIR / filename
         if file_path.exists():
             file_path.unlink()
+
+    await create_audit_log(
+        db,
+        action="vehicles.delete_image",
+        outcome="success",
+        message="Vehicle image deleted",
+        actor_uid=owner_uid,
+        entity_type="vehicle",
+        entity_id=vehicle_id,
+        metadata={"image_url": matched},
+    )
 
     return updated

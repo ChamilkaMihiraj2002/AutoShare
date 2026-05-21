@@ -1,11 +1,14 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from firebase_admin import auth
 
 # We use HTTPBearer to get the "Bearer <token>" from the Authorization header
 http_bearer = HTTPBearer()
 
-def get_current_user(creds: HTTPAuthorizationCredentials = Depends(http_bearer)):
+def get_current_user(
+    request: Request,
+    creds: HTTPAuthorizationCredentials = Depends(http_bearer),
+):
     """
     A dependency to verify the Firebase ID token.
     
@@ -23,6 +26,8 @@ def get_current_user(creds: HTTPAuthorizationCredentials = Depends(http_bearer))
         id_token = creds.credentials
         # Verify the token using Firebase Admin SDK
         decoded_token = auth.verify_id_token(id_token)
+        request.state.user_uid = decoded_token.get("uid")
+        request.state.user_email = decoded_token.get("email")
         return decoded_token
     except auth.InvalidIdTokenError as e:
         # Token is invalid (e.g., expired, malformed, wrong signature)

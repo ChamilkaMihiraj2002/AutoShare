@@ -1,12 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { Search, ArrowUpDown, Filter, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import CarCard from '../components/cards/CarCard';
-import { Filter, X } from 'lucide-react';
 import { getPublicVehicles } from '../lib/api';
 import { getPrimaryVehicleImage } from '../lib/profile';
 import type { Car } from '../types';
 
 const VEHICLE_TYPES = ['Sedan', 'SUV', 'Coupe', 'Hatchback', 'Convertible', 'Truck'];
 const FUEL_TYPES = ['Petrol', 'Diesel', 'Electric', 'Hybrid'];
+const SORT_OPTIONS = [
+    { value: 'recommended', label: 'Recommended' },
+    { value: 'price-low', label: 'Price: Low to High' },
+    { value: 'price-high', label: 'Price: High to Low' },
+    { value: 'name-asc', label: 'Name: A to Z' },
+    { value: 'seats-high', label: 'Seats: High to Low' },
+];
 
 const SearchVehicles: React.FC = () => {
     const [vehicles, setVehicles] = React.useState<Car[]>([]);
@@ -15,6 +23,10 @@ const SearchVehicles: React.FC = () => {
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
     const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>([]);
     const [showFilters, setShowFilters] = useState(false);
+    const [sortBy, setSortBy] = useState('recommended');
+    const [searchParams] = useSearchParams();
+    const initialLocation = searchParams.get('location') ?? '';
+    const [searchTerm, setSearchTerm] = useState(initialLocation);
 
     React.useEffect(() => {
         const loadVehicles = async () => {
@@ -62,21 +74,83 @@ const SearchVehicles: React.FC = () => {
     };
 
     const filteredVehicles = useMemo(() => {
-        return vehicles.filter(car => {
+        const normalizedSearch = searchTerm.trim().toLowerCase();
+
+        const matches = vehicles.filter(car => {
             const typeMatch = selectedTypes.length === 0 || (car.type && selectedTypes.includes(car.type));
             const fuelMatch = selectedFuelTypes.length === 0 || (car.fuelType && selectedFuelTypes.includes(car.fuelType));
-            return typeMatch && fuelMatch;
+            const searchMatch =
+                normalizedSearch.length === 0 ||
+                car.name.toLowerCase().includes(normalizedSearch) ||
+                car.location.toLowerCase().includes(normalizedSearch) ||
+                car.type?.toLowerCase().includes(normalizedSearch) ||
+                car.fuelType?.toLowerCase().includes(normalizedSearch);
+
+            return typeMatch && fuelMatch && searchMatch;
         });
-    }, [vehicles, selectedTypes, selectedFuelTypes]);
+
+        return [...matches].sort((first, second) => {
+            switch (sortBy) {
+                case 'price-low':
+                    return first.price - second.price;
+                case 'price-high':
+                    return second.price - first.price;
+                case 'name-asc':
+                    return first.name.localeCompare(second.name);
+                case 'seats-high':
+                    return second.seats - first.seats;
+                default:
+                    return 0;
+            }
+        });
+    }, [vehicles, selectedTypes, selectedFuelTypes, searchTerm, sortBy]);
 
     const clearFilters = () => {
         setSelectedTypes([]);
         setSelectedFuelTypes([]);
+        setSearchTerm('');
+        setSortBy('recommended');
     };
 
     return (
         <div className="bg-gray-50 min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
+                <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6">
+                    <div className="flex flex-col lg:flex-row gap-4 lg:items-end lg:justify-between">
+                        <div>
+                            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-500">Browse Vehicles</p>
+                            <h1 className="text-2xl font-bold text-gray-900 mt-2">Find the right vehicle on a separate page</h1>
+                            <p className="text-gray-500 mt-2">Search all vehicles, apply filters, and sort the results the way you want.</p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3 lg:min-w-[520px]">
+                            <label className="flex-1 flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <Search size={18} className="text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(event) => setSearchTerm(event.target.value)}
+                                    placeholder="Search by name, location, type, or fuel"
+                                    className="w-full bg-transparent text-sm outline-none"
+                                />
+                            </label>
+                            <label className="sm:w-64 flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <ArrowUpDown size={18} className="text-gray-400" />
+                                <select
+                                    value={sortBy}
+                                    onChange={(event) => setSortBy(event.target.value)}
+                                    className="w-full bg-transparent text-sm outline-none"
+                                >
+                                    {SORT_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="flex flex-col md:flex-row gap-8">
 
                     {/* Mobile Filter Toggle */}

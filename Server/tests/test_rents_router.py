@@ -18,6 +18,8 @@ async def test_create_rent_defaults_to_pending(fake_db):
 
     assert created["_id"] == "auto_1"
     assert created["booking_status"] == "pending"
+    logs = list(fake_db["system_logs"]._store.values())
+    assert any(log["action"] == "rents.create" and log["entity_id"] == created["_id"] for log in logs)
 
 
 @pytest.mark.asyncio
@@ -54,6 +56,8 @@ async def test_owner_can_accept_rent_and_vehicle_becomes_unavailable(fake_db):
     assert updated["booking_status"] == "accepted"
     vehicle = await fake_db["vehicles"].find_one({"_id": "veh_1"})
     assert vehicle["availability"] is False
+    logs = list(fake_db["system_logs"]._store.values())
+    assert any(log["action"] == "rents.accept" and log["entity_id"] == "rent_1" for log in logs)
 
 
 @pytest.mark.asyncio
