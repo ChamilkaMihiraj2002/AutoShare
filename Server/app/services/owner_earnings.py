@@ -25,6 +25,11 @@ def _parse_datetime(value: datetime | str | None) -> datetime | None:
 
 
 def _calculate_rent_amount(rent: dict, vehicle_price: float) -> float:
+    pricing_snapshot = rent.get("pricing_snapshot") or {}
+    snapshot_total = pricing_snapshot.get("total")
+    if snapshot_total is not None:
+        return round(float(snapshot_total), 2)
+
     start_date = _parse_datetime(rent.get("start_date"))
     end_date = _parse_datetime(rent.get("end_date"))
     if not start_date or not end_date:

@@ -1,8 +1,9 @@
-import { Car, Star, Zap, Settings, Plus, X, Loader2 } from 'lucide-react';
+import { Car, Star, Zap, Settings, Plus, Loader2 } from 'lucide-react';
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
+import Modal from '../../components/common/Modal';
 import { createMyVehicle, getMyVehicles, updateMyVehicle, uploadVehicleImage } from '../../lib/api';
 import { formatLkr } from '../../lib/currency';
 import { getPrimaryVehicleImage } from '../../lib/profile';
@@ -31,6 +32,15 @@ const defaultForm = {
   seats: '5',
   location: '',
   availability: true,
+  dynamicPricingEnabled: false,
+  weekendMultiplier: '1',
+  weeklyDiscountPercentage: '0',
+  monthlyDiscountPercentage: '0',
+  holidayMultiplier: '1.15',
+  rainyWeatherMultiplier: '1.05',
+  severeWeatherMultiplier: '1.12',
+  distanceIncludedKm: '10',
+  distanceSurchargePerKm: '15',
 };
 
 const MyVehicles = () => {
@@ -45,6 +55,9 @@ const MyVehicles = () => {
   const [form, setForm] = React.useState(defaultForm);
   const [imageFiles, setImageFiles] = React.useState<File[]>([]);
   const [togglingAvailabilityId, setTogglingAvailabilityId] = React.useState<string | null>(null);
+
+  const inputClassName = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#003049] focus:ring-2 focus:ring-[#003049]/10';
+  const sectionClassName = 'rounded-[24px] border border-gray-200 bg-white p-4 sm:p-5';
 
   const loadVehicles = React.useCallback(async () => {
     setLoading(true);
@@ -150,6 +163,18 @@ const MyVehicles = () => {
         seats,
         location: form.location.trim(),
         availability: form.availability,
+        dynamic_pricing: {
+          enabled: form.dynamicPricingEnabled,
+          weekend_multiplier: Number(form.weekendMultiplier) || 1,
+          weekly_discount_percentage: Number(form.weeklyDiscountPercentage) || 0,
+          monthly_discount_percentage: Number(form.monthlyDiscountPercentage) || 0,
+          holiday_multiplier: Number(form.holidayMultiplier) || 1.15,
+          rainy_weather_multiplier: Number(form.rainyWeatherMultiplier) || 1.05,
+          severe_weather_multiplier: Number(form.severeWeatherMultiplier) || 1.12,
+          distance_included_km: Number(form.distanceIncludedKm) || 0,
+          distance_surcharge_per_km: Number(form.distanceSurchargePerKm) || 0,
+          custom_date_multipliers: [],
+        },
       });
       if (imageFiles.length > 0) {
         if (!created.vehicleid) {
@@ -271,29 +296,54 @@ const MyVehicles = () => {
         </button>
       </div>
 
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-[120] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl border border-gray-100">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">Add New Vehicle</h3>
-              <button type="button" onClick={closeAddModal} className="p-2 rounded-lg hover:bg-gray-100" disabled={creating}>
-                <X size={20} />
-              </button>
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={closeAddModal}
+        title="Add New Vehicle"
+        maxWidthClassName="max-w-5xl"
+        bodyClassName="bg-[#f8fafc]"
+      >
+        <form onSubmit={handleCreateVehicle} className="space-y-5">
+          <div className="rounded-[24px] bg-[#003049] px-4 py-4 text-white shadow-lg shadow-[#003049]/20 sm:px-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/65">Vehicle Listing</p>
+                <h3 className="text-xl font-bold sm:text-2xl">Create a polished listing owners can manage easily</h3>
+                <p className="max-w-2xl text-sm text-white/78">
+                  Add the main vehicle details, choose pricing rules, and upload images in one place.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 rounded-2xl bg-white/12 px-4 py-3 text-sm font-medium backdrop-blur-sm">
+                <input
+                  type="checkbox"
+                  name="availability"
+                  checked={form.availability}
+                  onChange={handleFormChange}
+                  className="rounded border-white/40 text-[#003049]"
+                />
+                Available for booking
+              </label>
             </div>
+          </div>
 
-            <form onSubmit={handleCreateVehicle} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <section className={sectionClassName}>
+              <div className="mb-4">
+                <h4 className="text-base font-bold text-gray-900">Vehicle Basics</h4>
+                <p className="text-xs text-gray-500">Core details renters will see first.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                  <input name="brand" value={form.brand} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Brand</label>
+                  <input name="brand" value={form.brand} onChange={handleFormChange} className={inputClassName} required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-                  <input name="model" value={form.model} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Model</label>
+                  <input name="model" value={form.model} onChange={handleFormChange} className={inputClassName} required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Type</label>
-                  <select name="type" value={form.type} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Vehicle Type</label>
+                  <select name="type" value={form.type} onChange={handleFormChange} className={inputClassName}>
                     <option>Sedan</option>
                     <option>SUV</option>
                     <option>Coupe</option>
@@ -303,8 +353,8 @@ const MyVehicles = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fuel</label>
-                  <select name="fuel" value={form.fuel} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Fuel</label>
+                  <select name="fuel" value={form.fuel} onChange={handleFormChange} className={inputClassName}>
                     <option>Petrol</option>
                     <option>Diesel</option>
                     <option>Electric</option>
@@ -312,66 +362,144 @@ const MyVehicles = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Transmission</label>
-                  <select name="transmission" value={form.transmission} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Transmission</label>
+                  <select name="transmission" value={form.transmission} onChange={handleFormChange} className={inputClassName}>
                     <option>Automatic</option>
                     <option>Manual</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                  <input type="number" name="year" value={form.year} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" min={1980} max={new Date().getFullYear() + 1} required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Capacity (Seats)</label>
-                  <input type="number" min="1" name="seats" value={form.seats} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (Rs)</label>
-                  <input type="number" step="0.01" min="1" name="price" value={form.price} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                  <input name="location" value={form.location} onChange={handleFormChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Images</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={handleImageChange}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 file:mr-3 file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:rounded-md file:font-medium"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Optional. You can select multiple JPG/PNG/WEBP files, each up to 5MB.</p>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Location</label>
+                  <input name="location" value={form.location} onChange={handleFormChange} className={inputClassName} required />
                 </div>
               </div>
+            </section>
 
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+            <section className={sectionClassName}>
+              <div className="mb-4">
+                <h4 className="text-base font-bold text-gray-900">Capacity and Rate</h4>
+                <p className="text-xs text-gray-500">Set the daily rental price and basic capacity.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Year</label>
+                  <input type="number" name="year" value={form.year} onChange={handleFormChange} className={inputClassName} min={1980} max={new Date().getFullYear() + 1} required />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Capacity (Seats)</label>
+                  <input type="number" min="1" name="seats" value={form.seats} onChange={handleFormChange} className={inputClassName} required />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Price Per Day (Rs)</label>
+                  <input type="number" step="0.01" min="1" name="price" value={form.price} onChange={handleFormChange} className={inputClassName} required />
+                </div>
+                <div className="sm:col-span-2 rounded-2xl bg-gray-50 p-4">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Quick Preview</p>
+                  <p className="mt-2 text-lg font-bold text-[#003049]">
+                    {form.brand || form.model ? `${form.brand} ${form.model}`.trim() : 'Your vehicle name'}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {form.price ? `${formatLkr(Number(form.price))}/day` : 'Set a daily price'} • {form.location || 'Add a location'}
+                  </p>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section className={sectionClassName}>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h4 className="text-base font-bold text-gray-900">Dynamic Pricing</h4>
+                <p className="text-xs text-gray-500">Optional pricing rules for holidays, weather, and trip distance.</p>
+              </div>
+              <label className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700">
                 <input
                   type="checkbox"
-                  name="availability"
-                  checked={form.availability}
+                  name="dynamicPricingEnabled"
+                  checked={form.dynamicPricingEnabled}
                   onChange={handleFormChange}
                   className="rounded border-gray-300"
                 />
-                Available for booking
+                Enable dynamic pricing
               </label>
-
-              {createError && <p className="text-sm text-red-600">{createError}</p>}
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={closeAddModal} className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 font-medium" disabled={creating}>
-                  Cancel
-                </button>
-                <button type="submit" className="px-4 py-2 rounded-lg bg-orange-500 text-white font-bold hover:bg-orange-600 disabled:opacity-60" disabled={creating}>
-                  {creating ? 'Adding...' : 'Add Vehicle'}
-                </button>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Weekend Multiplier</label>
+                <input type="number" step="0.01" min="1" name="weekendMultiplier" value={form.weekendMultiplier} onChange={handleFormChange} className={inputClassName} />
               </div>
-            </form>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">7+ Day Discount (%)</label>
+                <input type="number" step="0.01" min="0" max="100" name="weeklyDiscountPercentage" value={form.weeklyDiscountPercentage} onChange={handleFormChange} className={inputClassName} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">30+ Day Discount (%)</label>
+                <input type="number" step="0.01" min="0" max="100" name="monthlyDiscountPercentage" value={form.monthlyDiscountPercentage} onChange={handleFormChange} className={inputClassName} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Holiday Multiplier</label>
+                <input type="number" step="0.01" min="1" name="holidayMultiplier" value={form.holidayMultiplier} onChange={handleFormChange} className={inputClassName} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Rain Multiplier</label>
+                <input type="number" step="0.01" min="1" name="rainyWeatherMultiplier" value={form.rainyWeatherMultiplier} onChange={handleFormChange} className={inputClassName} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Severe Weather Multiplier</label>
+                <input type="number" step="0.01" min="1" name="severeWeatherMultiplier" value={form.severeWeatherMultiplier} onChange={handleFormChange} className={inputClassName} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Included Distance (km)</label>
+                <input type="number" step="0.01" min="0" name="distanceIncludedKm" value={form.distanceIncludedKm} onChange={handleFormChange} className={inputClassName} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Extra Fee Per km</label>
+                <input type="number" step="0.01" min="0" name="distanceSurchargePerKm" value={form.distanceSurchargePerKm} onChange={handleFormChange} className={inputClassName} />
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-gray-500">Weather comes from Open-Meteo, holidays come from Nager.Date, and distance is calculated from the map coordinates used during booking.</p>
+          </section>
+
+          <section className={sectionClassName}>
+            <div className="mb-4">
+              <h4 className="text-base font-bold text-gray-900">Vehicle Images</h4>
+              <p className="text-xs text-gray-500">Optional. Upload one or more photos to improve the listing.</p>
+            </div>
+            <input
+              type="file"
+              multiple
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleImageChange}
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:font-medium"
+            />
+            <p className="mt-2 text-xs text-gray-500">You can select multiple JPG, PNG, or WEBP files, each up to 5MB.</p>
+            {imageFiles.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {imageFiles.map((file) => (
+                  <span key={`${file.name}-${file.size}`} className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                    {file.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {createError && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {createError}
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:justify-end">
+            <button type="button" onClick={closeAddModal} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700" disabled={creating}>
+              Cancel
+            </button>
+            <button type="submit" className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 disabled:opacity-60" disabled={creating}>
+              {creating ? 'Adding...' : 'Add Vehicle'}
+            </button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
     </div>
   );
 };

@@ -1,5 +1,18 @@
-import type { AuthResponse, OwnerEarningsOverview, PublicUserProfile, RentApi, UserProfile, UserRole, VehicleApi } from '../types';
-import { clearAuthToken, getAuthToken } from './auth';
+import type {
+  AdminAuthResponse,
+  AdminBookingsResponse,
+  AdminDashboardOverview,
+  AdminUsersResponse,
+  AuthResponse,
+  OwnerEarningsOverview,
+  PricingQuote,
+  PublicUserProfile,
+  RentApi,
+  UserProfile,
+  UserRole,
+  VehicleApi,
+} from '../types';
+import { clearAdminAuthToken, clearAuthToken, getAdminAuthToken, getAuthToken } from './auth';
 import { notifyProfileUpdated } from './profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -77,6 +90,62 @@ async function apiRequest<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+async function adminApiRequest<T>(
+  path: string,
+  method: RequestMethod = 'GET',
+  body?: unknown,
+): Promise<T> {
+  const token = getAdminAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Request failed (${response.status})`;
+    try {
+      const errorData = await response.json();
+      const detail = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+      if (detail) errorMessage = detail;
+    } catch {
+      // Keep generic error when body isn't JSON.
+    }
+
+    if (response.status === 401) {
+      clearAdminAuthToken();
+    }
+
+    throw new Error(errorMessage);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export async function loginAdmin(username: string, password: string): Promise<AdminAuthResponse> {
+  return adminApiRequest<AdminAuthResponse>('/admin/auth/login', 'POST', { username, password });
+}
+
+export async function getAdminDashboardOverview(): Promise<AdminDashboardOverview> {
+  return adminApiRequest<AdminDashboardOverview>('/admin/dashboard/overview');
+}
+
+export async function getAdminUsers(): Promise<AdminUsersResponse> {
+  return adminApiRequest<AdminUsersResponse>('/admin/users');
+}
+
+export async function getAdminBookings(): Promise<AdminBookingsResponse> {
+  return adminApiRequest<AdminBookingsResponse>('/admin/bookings');
 }
 
 export async function loginWithEmail(email: string, password: string): Promise<AuthResponse> {
@@ -175,6 +244,7 @@ export async function createMyVehicle(payload: {
   year: number;
   model: string;
   seats: number;
+  dynamic_pricing?: VehicleApi['dynamic_pricing'];
 }): Promise<VehicleApi> {
   const vehicle = await apiRequest<RawVehicleApi>('/vehicles/', 'POST', payload, true);
   return normalizeVehicle(vehicle);
@@ -195,6 +265,7 @@ export async function updateMyVehicle(
     seats?: number;
     image_urls?: string[];
     image_url?: string;
+    dynamic_pricing?: VehicleApi['dynamic_pricing'];
   },
 ): Promise<VehicleApi> {
   const vehicle = await apiRequest<RawVehicleApi>(`/vehicles/${vehicleId}`, 'PATCH', payload, true);
@@ -279,6 +350,11 @@ export async function createRent(payload: {
   owner_uid: string;
   start_date: string;
   end_date: string;
+  pickup_latitude?: number | null;
+  pickup_longitude?: number | null;
+  destination_latitude?: number | null;
+  destination_longitude?: number | null;
+  country_code?: string;
   pickup_option?: string;
   delivery_address?: string | null;
   insurance_plan?: string;
@@ -287,6 +363,40 @@ export async function createRent(payload: {
 }): Promise<RentApi> {
   const rent = await apiRequest<RawRentApi>('/rents/', 'POST', payload, true);
   return normalizeRent(rent);
+}
+
+export async function getVehiclePricingQuote(
+  vehicleId: string,
+  payload: {
+    startDate: string;
+    endDate: string;
+    pickupLatitude?: number | null;
+    pickupLongitude?: number | null;
+    destinationLatitude?: number | null;
+    destinationLongitude?: number | null;
+    countryCode?: string;
+  },
+): Promise<PricingQuote> {
+  const query = new URLSearchParams({
+    start_date: payload.startDate,
+    end_date: payload.endDate,
+  });
+  if (payload.pickupLatitude !== undefined && payload.pickupLatitude !== null) {
+    query.set('pickup_latitude', String(payload.pickupLatitude));
+  }
+  if (payload.pickupLongitude !== undefined && payload.pickupLongitude !== null) {
+    query.set('pickup_longitude', String(payload.pickupLongitude));
+  }
+  if (payload.destinationLatitude !== undefined && payload.destinationLatitude !== null) {
+    query.set('destination_latitude', String(payload.destinationLatitude));
+  }
+  if (payload.destinationLongitude !== undefined && payload.destinationLongitude !== null) {
+    query.set('destination_longitude', String(payload.destinationLongitude));
+  }
+  if (payload.countryCode) {
+    query.set('country_code', payload.countryCode);
+  }
+  return apiRequest<PricingQuote>(`/vehicles/${vehicleId}/pricing?${query.toString()}`);
 }
 
 export async function acceptOwnerRent(rentId: string): Promise<RentApi> {

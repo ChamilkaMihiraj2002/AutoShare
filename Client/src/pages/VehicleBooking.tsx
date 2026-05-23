@@ -3,10 +3,10 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Lock, Calendar, MapPin, Navigation } from 'lucide-react';
 import MapWidget from '../components/map/MapWidget';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { createRent, getPublicVehicleById } from '../lib/api';
+import { createRent, getPublicVehicleById, getVehiclePricingQuote } from '../lib/api';
 import { getPrimaryVehicleImage } from '../lib/profile';
 import { formatLkr } from '../lib/currency';
-import type { Car } from '../types';
+import type { Car, PricingQuote } from '../types';
 
 interface BookingVehicle extends Car {
   ownerUid: string;
@@ -27,9 +27,11 @@ const VehicleBooking: React.FC = () => {
   const [loadError, setLoadError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pricingQuote, setPricingQuote] = useState<PricingQuote | null>(null);
+  const [pricingError, setPricingError] = useState('');
+  const [loadingQuote, setLoadingQuote] = useState(false);
 
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [distance, setDistance] = useState<number | null>(null);
 
   const [startDate, setStartDate] = useState<string>(locationState?.startDate || new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState<string>(locationState?.endDate || new Date(Date.now() + 86400000).toISOString().slice(0, 10));
@@ -42,6 +44,14 @@ const VehicleBooking: React.FC = () => {
   const [insurancePlan, setInsurancePlan] = useState<'basic' | 'standard' | 'premium'>('basic');
   const [childSeatCount, setChildSeatCount] = useState(0);
   const [note, setNote] = useState('');
+
+  const geocodeLocation = async (value: string) => {
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`);
+    const data = await response.json();
+    if (data && data.length > 0) {
+      setDestination({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+    }
+  };
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -91,6 +101,7 @@ const VehicleBooking: React.FC = () => {
 
         setVehicle(mappedVehicle);
         setLocation(mappedVehicle.location);
+        await geocodeLocation(mappedVehicle.location);
       } catch (err) {
         setLoadError(err instanceof Error ? err.message : 'Failed to load vehicle');
       } finally {
@@ -100,27 +111,6 @@ const VehicleBooking: React.FC = () => {
 
     void loadVehicle();
   }, [id]);
-
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  useEffect(() => {
-    if (userLocation && destination) {
-      const dist = calculateDistance(userLocation.lat, userLocation.lng, destination.lat, destination.lng);
-      setDistance(Math.round(dist * 10) / 10);
-    }
-  }, [userLocation, destination]);
 
   const calculateDays = (start: string, end: string) => {
     const s = new Date(start);
@@ -132,23 +122,59 @@ const VehicleBooking: React.FC = () => {
 
   const duration = calculateDays(startDate, endDate);
   const serviceFee = 9;
-  const baseRent = vehicle ? vehicle.price * duration : 0;
+  const baseRent = pricingQuote?.total ?? (vehicle ? vehicle.price * duration : 0);
   const insurancePerDay = insurancePlan === 'basic' ? 0 : insurancePlan === 'standard' ? 1200 : 2500;
   const insuranceTotal = insurancePerDay * duration;
   const deliveryFee = pickupOption === 'delivery' ? 1500 : 0;
   const childSeatTotal = childSeatCount * 500 * duration;
   const total = baseRent + serviceFee + insuranceTotal + deliveryFee + childSeatTotal;
+  const tripDistanceKm = pricingQuote?.distance_km ?? null;
+
+  useEffect(() => {
+    const loadQuote = async () => {
+      if (!vehicle) {
+        setPricingQuote(null);
+        return;
+      }
+      if (new Date(endDate) <= new Date(startDate)) {
+        setPricingQuote(null);
+        setPricingError('End date must be after start date.');
+        return;
+      }
+
+      setLoadingQuote(true);
+      setPricingError('');
+      try {
+        const quote = await getVehiclePricingQuote(
+          vehicle.id,
+          {
+            startDate: new Date(startDate).toISOString(),
+            endDate: new Date(endDate).toISOString(),
+            pickupLatitude: userLocation?.lat ?? null,
+            pickupLongitude: userLocation?.lng ?? null,
+            destinationLatitude: destination?.lat ?? null,
+            destinationLongitude: destination?.lng ?? null,
+            countryCode: 'LK',
+          },
+        );
+        setPricingQuote(quote);
+      } catch (error) {
+        setPricingQuote(null);
+        setPricingError(error instanceof Error ? error.message : 'Failed to calculate quote');
+      } finally {
+        setLoadingQuote(false);
+      }
+    };
+
+    void loadQuote();
+  }, [vehicle, startDate, endDate, userLocation, destination]);
 
   const handleLocationUpdate = async () => {
     setIsEditingLocation(false);
     if (!location.trim()) return;
 
     try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}`);
-      const data = await response.json();
-      if (data && data.length > 0) {
-        setDestination({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
-      }
+      await geocodeLocation(location);
     } catch (error) {
       console.error('Failed to geocode location:', error);
     }
@@ -158,6 +184,10 @@ const VehicleBooking: React.FC = () => {
     if (!vehicle) return;
 
     setSubmitError('');
+    if (pricingError) {
+      setSubmitError(pricingError);
+      return;
+    }
     if (pickupOption === 'delivery' && !deliveryAddress.trim()) {
       setSubmitError('Delivery address is required when delivery is selected.');
       return;
@@ -169,6 +199,11 @@ const VehicleBooking: React.FC = () => {
         owner_uid: vehicle.ownerUid,
         start_date: new Date(startDate).toISOString(),
         end_date: new Date(endDate).toISOString(),
+        pickup_latitude: userLocation?.lat ?? null,
+        pickup_longitude: userLocation?.lng ?? null,
+        destination_latitude: destination?.lat ?? null,
+        destination_longitude: destination?.lng ?? null,
+        country_code: 'LK',
         pickup_option: pickupOption,
         delivery_address: pickupOption === 'delivery' ? deliveryAddress.trim() : null,
         insurance_plan: insurancePlan,
@@ -214,11 +249,11 @@ const VehicleBooking: React.FC = () => {
 
               <div className="h-64 w-full bg-gray-100 relative">
                 <MapWidget userLocation={userLocation} destination={destination} />
-                {distance !== null && (
+                {tripDistanceKm !== null && (
                   <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-sm text-sm font-bold text-gray-800 z-[1000] border border-gray-200">
                     <div className="flex items-center gap-2">
                       <Navigation size={16} className="text-orange-500" />
-                      {distance} km away
+                      {tripDistanceKm.toFixed(1)} km by road
                     </div>
                   </div>
                 )}
@@ -409,9 +444,23 @@ const VehicleBooking: React.FC = () => {
 
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
-                  <span>{formatLkr(vehicle.price)} × {duration} days</span>
+                  <span>
+                    {pricingQuote ? `${pricingQuote.total_days} dynamic days` : `${formatLkr(vehicle.price)} × ${duration} days`}
+                  </span>
                   <span>{formatLkr(baseRent)}</span>
                 </div>
+                {pricingQuote && pricingQuote.duration_discount_amount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>Length-of-trip discount ({pricingQuote.duration_discount_percentage}%)</span>
+                    <span>-{formatLkr(pricingQuote.duration_discount_amount)}</span>
+                  </div>
+                )}
+                {pricingQuote && pricingQuote.distance_fee > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Distance fee ({pricingQuote.distance_km.toFixed(1)} km trip)</span>
+                    <span>{formatLkr(pricingQuote.distance_fee)}</span>
+                  </div>
+                )}
                 {insuranceTotal > 0 && (
                   <div className="flex justify-between text-gray-600">
                     <span>Insurance ({insurancePlan})</span>
@@ -438,6 +487,8 @@ const VehicleBooking: React.FC = () => {
                   <span>Service fee</span>
                   <span>{formatLkr(serviceFee)}</span>
                 </div>
+                {loadingQuote && <p className="text-sm text-gray-500">Refreshing dynamic price...</p>}
+                {pricingError && <p className="text-sm text-red-600">{pricingError}</p>}
                 <div className="flex justify-between font-bold text-gray-900 pt-3 border-t border-gray-100">
                   <span>Total</span>
                   <span>{formatLkr(total)}</span>

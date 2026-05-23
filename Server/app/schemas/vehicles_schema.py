@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -55,6 +56,7 @@ class VehicleBase(BaseModel):
     seats: int = 5
     image_urls: list[str] = Field(default_factory=list)
     image_url: Optional[str] = None
+    dynamic_pricing: Optional["VehicleDynamicPricing"] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -94,6 +96,7 @@ class VehicleUpdate(BaseModel):
     seats: Optional[int] = None
     image_urls: Optional[list[str]] = None
     image_url: Optional[str] = None
+    dynamic_pricing: Optional["VehicleDynamicPricing"] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -147,5 +150,67 @@ class Vehicle(VehicleBase):
                     "/uploads/vehicles/example2.jpg",
                 ],
                 "image_url": "/uploads/vehicles/example.jpg",
+                "dynamic_pricing": {
+                    "enabled": True,
+                    "weekend_multiplier": 1.1,
+                    "weekly_discount_percentage": 5,
+                    "monthly_discount_percentage": 10,
+                    "custom_date_multipliers": [
+                        {
+                            "label": "New Year demand",
+                            "start_date": "2026-12-20",
+                            "end_date": "2027-01-05",
+                            "multiplier": 1.25,
+                        }
+                    ],
+                },
             }
         }
+
+
+class CustomDateMultiplier(BaseModel):
+    label: Optional[str] = None
+    start_date: date
+    end_date: date
+    multiplier: float = 1.0
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        if self.multiplier <= 0:
+            raise ValueError("multiplier must be greater than 0")
+        return self
+
+
+class VehicleDynamicPricing(BaseModel):
+    enabled: bool = False
+    weekend_multiplier: float = 1.0
+    weekly_discount_percentage: float = 0.0
+    monthly_discount_percentage: float = 0.0
+    holiday_multiplier: float = 1.15
+    rainy_weather_multiplier: float = 1.05
+    severe_weather_multiplier: float = 1.12
+    distance_included_km: float = 10.0
+    distance_surcharge_per_km: float = 15.0
+    custom_date_multipliers: list[CustomDateMultiplier] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_values(self):
+        if self.weekend_multiplier <= 0:
+            raise ValueError("weekend_multiplier must be greater than 0")
+        if self.holiday_multiplier <= 0:
+            raise ValueError("holiday_multiplier must be greater than 0")
+        if self.rainy_weather_multiplier <= 0:
+            raise ValueError("rainy_weather_multiplier must be greater than 0")
+        if self.severe_weather_multiplier <= 0:
+            raise ValueError("severe_weather_multiplier must be greater than 0")
+        if self.distance_included_km < 0:
+            raise ValueError("distance_included_km must be 0 or greater")
+        if self.distance_surcharge_per_km < 0:
+            raise ValueError("distance_surcharge_per_km must be 0 or greater")
+        if not 0 <= self.weekly_discount_percentage <= 100:
+            raise ValueError("weekly_discount_percentage must be between 0 and 100")
+        if not 0 <= self.monthly_discount_percentage <= 100:
+            raise ValueError("monthly_discount_percentage must be between 0 and 100")
+        return self

@@ -18,6 +18,7 @@ from app.repositories.rent import (
 from app.repositories.vehicle import get_vehicle_by_id, update_vehicle
 from app.services.owner_earnings import get_owner_earnings_overview
 from app.services.audit_log import create_audit_log
+from app.services.vehicle_pricing import calculate_vehicle_pricing
 
 router = APIRouter(
     prefix="/rents",
@@ -41,8 +42,33 @@ async def create_rent_endpoint(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     renter_uid = decoded_token.get("uid")
+    vehicle = await get_vehicle_by_id(db=db, vehicle_id=payload.vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+    if vehicle.get("owner_uid") != payload.owner_uid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vehicle owner does not match booking payload")
+    if not vehicle.get("availability", False):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vehicle is not currently available")
+
     try:
-        created = await create_rent(db=db, renter_uid=renter_uid, rent_doc=payload.model_dump())
+        pricing_snapshot = calculate_vehicle_pricing(
+            vehicle=vehicle,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
+            pickup_latitude=payload.pickup_latitude,
+            pickup_longitude=payload.pickup_longitude,
+            destination_latitude=payload.destination_latitude,
+            destination_longitude=payload.destination_longitude,
+            country_code=payload.country_code,
+        ).to_dict()
+        created = await create_rent(
+            db=db,
+            renter_uid=renter_uid,
+            rent_doc={
+                **payload.model_dump(),
+                "pricing_snapshot": pricing_snapshot,
+            },
+        )
         await create_audit_log(
             db,
             action="rents.create",
@@ -51,9 +77,15 @@ async def create_rent_endpoint(
             actor_uid=renter_uid,
             entity_type="rent",
             entity_id=created.get("_id"),
-            metadata={"vehicle_id": created.get("vehicle_id"), "owner_uid": created.get("owner_uid")},
+            metadata={
+                "vehicle_id": created.get("vehicle_id"),
+                "owner_uid": created.get("owner_uid"),
+                "quoted_total": pricing_snapshot.get("total"),
+            },
         )
         return created
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         await create_audit_log(
             db,

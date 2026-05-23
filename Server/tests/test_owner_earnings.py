@@ -35,6 +35,7 @@ async def test_owner_earnings_returns_summary_and_recent_transactions(fake_db):
             "start_date": (this_month_start - timedelta(days=2)).isoformat(),
             "end_date": this_month_start.isoformat(),
             "booking_status": "completed",
+            "pricing_snapshot": {"total": 250.0},
         }
     )
     await fake_db["rents"].insert_one(
@@ -73,13 +74,13 @@ async def test_owner_earnings_returns_summary_and_recent_transactions(fake_db):
 
     overview = await rents_router.get_owner_earnings(decoded_token={"uid": "owner_1"}, db=fake_db)
 
-    assert overview["summary"]["this_month"]["amount"] == 200.0
+    assert overview["summary"]["this_month"]["amount"] == 250.0
     assert overview["summary"]["this_month"]["bookings"] == 1
     assert overview["summary"]["last_month"]["amount"] == 300.0
     assert overview["summary"]["last_month"]["bookings"] == 1
-    assert overview["summary"]["all_time"]["amount"] == 500.0
+    assert overview["summary"]["all_time"]["amount"] == 550.0
     assert overview["summary"]["all_time"]["bookings"] == 2
-    assert overview["summary"]["change_percentage"] == pytest.approx(-33.33, rel=1e-2)
+    assert overview["summary"]["change_percentage"] == pytest.approx(-16.67, rel=1e-2)
     assert [transaction["rent_id"] for transaction in overview["transactions"]] == [
         "rent_accepted_future",
         "rent_completed_this_month",

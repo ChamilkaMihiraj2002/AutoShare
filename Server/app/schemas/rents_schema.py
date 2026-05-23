@@ -3,16 +3,45 @@ from typing import Literal, Optional
 from datetime import datetime
 
 
+class RentPricingLineItem(BaseModel):
+    date: str
+    base_price: float
+    adjusted_price: float
+    applied_multipliers: list[str] = Field(default_factory=list)
+
+
+class RentPricingSnapshot(BaseModel):
+    currency: str = "LKR"
+    base_daily_price: float
+    total_days: int
+    subtotal: float
+    duration_discount_percentage: float = 0.0
+    duration_discount_amount: float = 0.0
+    distance_km: float = 0.0
+    distance_fee: float = 0.0
+    holiday_dates: list[str] = Field(default_factory=list)
+    weather_summary: list[str] = Field(default_factory=list)
+    weather_note: Optional[str] = None
+    total: float
+    line_items: list[RentPricingLineItem] = Field(default_factory=list)
+
+
 class RentBase(BaseModel):
     vehicle_id: str
     start_date: datetime
     end_date: datetime
     booking_status: Literal["pending", "accepted", "cancelled", "completed"] = "pending"
+    pickup_latitude: Optional[float] = None
+    pickup_longitude: Optional[float] = None
+    destination_latitude: Optional[float] = None
+    destination_longitude: Optional[float] = None
+    country_code: str = "LK"
     pickup_option: str = "self_pickup"
     delivery_address: Optional[str] = None
     insurance_plan: str = "basic"
     child_seat_count: int = 0
     note: Optional[str] = None
+    pricing_snapshot: Optional[RentPricingSnapshot] = None
 
 
 class RentCreate(RentBase):
@@ -27,6 +56,11 @@ class RentCreate(RentBase):
 class RentUpdate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    pickup_latitude: Optional[float] = None
+    pickup_longitude: Optional[float] = None
+    destination_latitude: Optional[float] = None
+    destination_longitude: Optional[float] = None
+    country_code: Optional[str] = None
     pickup_option: Optional[str] = None
     delivery_address: Optional[str] = None
     insurance_plan: Optional[str] = None
@@ -60,5 +94,28 @@ class Rent(RentBase):
                 "insurance_plan": "basic",
                 "child_seat_count": 0,
                 "note": "Please keep fuel full.",
+                "pricing_snapshot": {
+                    "currency": "LKR",
+                    "base_daily_price": 8500,
+                    "total_days": 2,
+                    "subtotal": 17850,
+                    "duration_discount_percentage": 0,
+                    "duration_discount_amount": 0,
+                    "total": 17850,
+                    "line_items": [
+                        {
+                            "date": "2026-01-07",
+                            "base_price": 8500,
+                            "adjusted_price": 8500,
+                            "applied_multipliers": [],
+                        },
+                        {
+                            "date": "2026-01-08",
+                            "base_price": 8500,
+                            "adjusted_price": 9350,
+                            "applied_multipliers": ["weekend x1.10"],
+                        },
+                    ],
+                },
             }
         }

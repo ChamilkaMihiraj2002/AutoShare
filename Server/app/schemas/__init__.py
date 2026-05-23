@@ -16,14 +16,18 @@ from .users_schema import (
     AuthResponse,
 )
 from .vehicles_schema import (
+    CustomDateMultiplier,
     VehicleBase,
     VehicleCreate,
+    VehicleDynamicPricing,
     VehicleUpdate,
     Vehicle,
 )
 from .rents_schema import (
     RentBase,
     RentCreate,
+    RentPricingLineItem,
+    RentPricingSnapshot,
     RentUpdate,
     Rent,
 )
@@ -32,6 +36,18 @@ from .earnings_schema import (
     EarningsSummary,
     OwnerEarningsTransaction,
     OwnerEarningsOverview,
+)
+from .admin_schema import (
+    AdminLoginRequest,
+    AdminAuthResponse,
+    AdminOverviewStats,
+    AdminActivityItem,
+    AdminAccountSummary,
+    AdminDashboardOverview,
+    AdminUserItem,
+    AdminBookingItem,
+    AdminUsersResponse,
+    AdminBookingsResponse,
 )
 
 __all__ = [
@@ -46,14 +62,28 @@ __all__ = [
     "AuthResponse",
     "VehicleBase",
     "VehicleCreate",
+    "VehicleDynamicPricing",
+    "CustomDateMultiplier",
     "VehicleUpdate",
     "Vehicle",
     "RentBase",
     "RentCreate",
+    "RentPricingLineItem",
+    "RentPricingSnapshot",
     "RentUpdate",
     "Rent",
     "EarningsPeriodSummary",
     "EarningsSummary",
     "OwnerEarningsTransaction",
     "OwnerEarningsOverview",
+    "AdminLoginRequest",
+    "AdminAuthResponse",
+    "AdminOverviewStats",
+    "AdminActivityItem",
+    "AdminAccountSummary",
+    "AdminDashboardOverview",
+    "AdminUserItem",
+    "AdminBookingItem",
+    "AdminUsersResponse",
+    "AdminBookingsResponse",
 ]

@@ -41,6 +41,15 @@ const VehicleManage = () => {
     location: '',
     availability: true,
     imageUrl: '',
+    dynamicPricingEnabled: false,
+    weekendMultiplier: '1',
+    weeklyDiscountPercentage: '0',
+    monthlyDiscountPercentage: '0',
+    holidayMultiplier: '1.15',
+    rainyWeatherMultiplier: '1.05',
+    severeWeatherMultiplier: '1.12',
+    distanceIncludedKm: '10',
+    distanceSurchargePerKm: '15',
   });
 
   const showToast = React.useCallback((type: Toast['type'], message: string) => {
@@ -74,6 +83,15 @@ const VehicleManage = () => {
         location: vehicle.location,
         availability: vehicle.availability,
         imageUrl: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
+        dynamicPricingEnabled: vehicle.dynamic_pricing?.enabled ?? false,
+        weekendMultiplier: String(vehicle.dynamic_pricing?.weekend_multiplier ?? 1),
+        weeklyDiscountPercentage: String(vehicle.dynamic_pricing?.weekly_discount_percentage ?? 0),
+        monthlyDiscountPercentage: String(vehicle.dynamic_pricing?.monthly_discount_percentage ?? 0),
+        holidayMultiplier: String(vehicle.dynamic_pricing?.holiday_multiplier ?? 1.15),
+        rainyWeatherMultiplier: String(vehicle.dynamic_pricing?.rainy_weather_multiplier ?? 1.05),
+        severeWeatherMultiplier: String(vehicle.dynamic_pricing?.severe_weather_multiplier ?? 1.12),
+        distanceIncludedKm: String(vehicle.dynamic_pricing?.distance_included_km ?? 10),
+        distanceSurchargePerKm: String(vehicle.dynamic_pricing?.distance_surcharge_per_km ?? 15),
       });
       setRawImageUrls(
         vehicle.image_urls && vehicle.image_urls.length > 0
@@ -143,6 +161,18 @@ const VehicleManage = () => {
         seats,
         location: form.location.trim(),
         availability: form.availability,
+        dynamic_pricing: {
+          enabled: form.dynamicPricingEnabled,
+          weekend_multiplier: Number(form.weekendMultiplier) || 1,
+          weekly_discount_percentage: Number(form.weeklyDiscountPercentage) || 0,
+          monthly_discount_percentage: Number(form.monthlyDiscountPercentage) || 0,
+          holiday_multiplier: Number(form.holidayMultiplier) || 1.15,
+          rainy_weather_multiplier: Number(form.rainyWeatherMultiplier) || 1.05,
+          severe_weather_multiplier: Number(form.severeWeatherMultiplier) || 1.12,
+          distance_included_km: Number(form.distanceIncludedKm) || 0,
+          distance_surcharge_per_km: Number(form.distanceSurchargePerKm) || 0,
+          custom_date_multipliers: [],
+        },
       });
       showToast('success', 'Vehicle updated successfully.');
     } catch (err) {
@@ -342,6 +372,47 @@ const VehicleManage = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (Rs)</label>
               <input type="number" step="0.01" min="1" name="price" value={form.price} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
+            </div>
+            <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-4">
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input type="checkbox" name="dynamicPricingEnabled" checked={form.dynamicPricingEnabled} onChange={handleChange} className="rounded border-gray-300" />
+                Enable dynamic pricing
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Weekend Multiplier</label>
+                  <input type="number" step="0.01" min="1" name="weekendMultiplier" value={form.weekendMultiplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">7+ Day Discount (%)</label>
+                  <input type="number" step="0.01" min="0" max="100" name="weeklyDiscountPercentage" value={form.weeklyDiscountPercentage} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">30+ Day Discount (%)</label>
+                  <input type="number" step="0.01" min="0" max="100" name="monthlyDiscountPercentage" value={form.monthlyDiscountPercentage} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Holiday Multiplier</label>
+                  <input type="number" step="0.01" min="1" name="holidayMultiplier" value={form.holidayMultiplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rain Multiplier</label>
+                  <input type="number" step="0.01" min="1" name="rainyWeatherMultiplier" value={form.rainyWeatherMultiplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Severe Weather Multiplier</label>
+                  <input type="number" step="0.01" min="1" name="severeWeatherMultiplier" value={form.severeWeatherMultiplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Included Distance (km)</label>
+                  <input type="number" step="0.01" min="0" name="distanceIncludedKm" value={form.distanceIncludedKm} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Extra Fee Per km</label>
+                  <input type="number" step="0.01" min="0" name="distanceSurchargePerKm" value={form.distanceSurchargePerKm} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">Live quotes use Open-Meteo weather, Nager.Date public holidays, and map-based trip distance from the booking flow.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>

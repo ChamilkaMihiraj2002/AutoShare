@@ -4,7 +4,6 @@ import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar } from 'lucide-re
 import LoadingScreen from '../components/common/LoadingScreen';
 import { getPublicVehicleById } from '../lib/api';
 import { getPrimaryVehicleImage } from '../lib/profile';
-import { formatLkr } from '../lib/currency';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
 import type { Car } from '../types';
 
@@ -72,6 +71,7 @@ const VehicleDetails: React.FC = () => {
 
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [dateError, setDateError] = useState('');
 
     if (isLoading) {
         return <LoadingScreen message="Loading vehicle..." />;
@@ -85,22 +85,18 @@ const VehicleDetails: React.FC = () => {
         return <div className="pt-24 text-center">Vehicle not found</div>;
     }
 
-    const calculateTotal = () => {
-        // Simplified calculation
-        if (!startDate || !endDate) return null;
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays > 0 ? diffDays * vehicle.price : 0;
-    };
-
-    const days = calculateTotal() ? Math.ceil(calculateTotal()! / vehicle.price) : 0;
-    const serviceFee = 9;
-    const total = (days * vehicle.price) + serviceFee;
-
-
     const handleBookNow = () => {
+        if (!startDate || !endDate) {
+            setDateError('Please select both start and end dates.');
+            return;
+        }
+
+        if (new Date(endDate) <= new Date(startDate)) {
+            setDateError('End date must be after start date.');
+            return;
+        }
+
+        setDateError('');
         navigate(`/vehicles/${vehicle.id}/book`, {
             state: {
                 startDate,
@@ -221,8 +217,9 @@ const VehicleDetails: React.FC = () => {
                     {/* Right Column - Booking Widget */}
                     <div className="lg:col-span-1">
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-24">
-                            <div className="flex justify-between items-baseline mb-6">
-                                <div className="text-2xl font-bold text-gray-900">{formatLkr(vehicle.price)} <span className="text-base font-normal text-gray-500">per day</span></div>
+                            <div className="mb-6">
+                                <h2 className="text-2xl font-bold text-gray-900">Plan Your Trip</h2>
+                                <p className="text-sm text-gray-500 mt-1">Choose your dates and continue to see the live dynamic price.</p>
                             </div>
 
                             <div className="space-y-4 mb-6">
@@ -232,7 +229,11 @@ const VehicleDetails: React.FC = () => {
                                         type="date"
                                         className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                         value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
+                                        min={new Date().toISOString().slice(0, 10)}
+                                        onChange={(e) => {
+                                            setStartDate(e.target.value);
+                                            setDateError('');
+                                        }}
                                     />
                                 </div>
                                 <div>
@@ -241,28 +242,14 @@ const VehicleDetails: React.FC = () => {
                                         type="date"
                                         className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                         value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
+                                        min={startDate || new Date().toISOString().slice(0, 10)}
+                                        onChange={(e) => {
+                                            setEndDate(e.target.value);
+                                            setDateError('');
+                                        }}
                                     />
                                 </div>
                             </div>
-
-                            {days > 0 && (
-                                <div className="space-y-3 mb-6 pt-4 border-t border-gray-100">
-                                    <div className="flex justify-between text-gray-600">
-                                        <span>{formatLkr(vehicle.price)} × {days} days</span>
-                                        <span>{formatLkr(days * vehicle.price)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-gray-600">
-                                        <span>Service fee</span>
-                                        <span>{formatLkr(serviceFee)}</span>
-                                    </div>
-                                    <div className="flex justify-between font-bold text-gray-900 pt-3 border-t border-gray-100">
-                                        <span>Total</span>
-                                        <span>{formatLkr(total)}</span>
-                                    </div>
-                                </div>
-                            )}
-
                             <button
                                 onClick={handleBookNow}
                                 className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-500/30"
@@ -270,7 +257,9 @@ const VehicleDetails: React.FC = () => {
                                 Book Now
                             </button>
 
-                            <p className="text-center text-sm text-gray-400 mt-4">You won't be charged yet</p>
+                            {dateError && <p className="mt-3 text-sm text-red-600">{dateError}</p>}
+
+                            <p className="text-center text-sm text-gray-400 mt-4">You will review the live dynamic price on the next step.</p>
                         </div>
                     </div>
                 </div>
