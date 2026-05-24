@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+from app.schemas.vehicles_schema import VehicleDynamicPricing
 
 
 class AdminLoginRequest(BaseModel):
@@ -20,6 +21,8 @@ class AdminOverviewStats(BaseModel):
     total_vehicle_owners: int
     active_vehicles: int
     inactive_vehicles: int
+    pending_vehicle_verifications: int
+    verified_vehicles: int
     current_rents: int
     completed_rents: int
 
@@ -64,9 +67,43 @@ class AdminBookingItem(BaseModel):
     total_amount: float | None = None
 
 
+class AdminVehicleVerificationItem(BaseModel):
+    vehicle_id: str
+    owner_uid: str
+    brand: str
+    model: str
+    year: int
+    location: str
+    availability: bool
+    verification_status: str
+    verification_notes: str | None = None
+    verification_submitted_at: str | None = None
+    verification_verified_at: str | None = None
+    verification_verified_by: str | None = None
+    vehicle_book_url: str | None = None
+    vehicle_license_url: str | None = None
+
+
+class AdminVehicleVerificationUpdateRequest(BaseModel):
+    verification_status: str
+    verification_notes: str | None = None
+
+
+class AdminDynamicPricingSettings(VehicleDynamicPricing):
+    pass
+
+
+class AdminDynamicPricingSettingsResponse(BaseModel):
+    settings: AdminDynamicPricingSettings
+
+
 class AdminUsersResponse(BaseModel):
     users: list[AdminUserItem] = Field(default_factory=list)
 
 
 class AdminBookingsResponse(BaseModel):
     bookings: list[AdminBookingItem] = Field(default_factory=list)
+
+
+class AdminVehiclesResponse(BaseModel):
+    vehicles: list[AdminVehicleVerificationItem] = Field(default_factory=list)

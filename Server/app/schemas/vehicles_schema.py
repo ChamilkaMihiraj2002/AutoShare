@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, model_validator
@@ -43,6 +43,55 @@ def normalize_vehicle_image_urls(values: list[str] | None, legacy_value: str | N
     return normalized_urls, primary
 
 
+def normalize_upload_asset_url(asset_url: str | None, *, folder: str) -> str | None:
+    if asset_url is None:
+        return None
+
+    normalized = asset_url.strip().replace("\\", "/")
+    if not normalized:
+        return None
+
+    parsed = urlparse(normalized)
+    if parsed.scheme and parsed.netloc:
+        normalized = parsed.path or normalized
+
+    folder_path = f"/uploads/{folder.strip('/')}/"
+    folder_index = normalized.lower().find(folder_path.lower())
+    if folder_index >= 0:
+        normalized = normalized[folder_index:]
+    elif normalized.lower().startswith(folder_path.lstrip("/").lower()):
+        normalized = f"/{normalized}"
+    elif not normalized.startswith("/"):
+        normalized = f"/{normalized}"
+
+    return normalized
+
+
+class VehicleVerificationDocuments(BaseModel):
+    vehicle_book_url: str | None = None
+    vehicle_license_url: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_document_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        normalized["vehicle_book_url"] = normalize_upload_asset_url(
+            normalized.get("vehicle_book_url"),
+            folder="vehicle-documents",
+        )
+        normalized["vehicle_license_url"] = normalize_upload_asset_url(
+            normalized.get("vehicle_license_url"),
+            folder="vehicle-documents",
+        )
+        return normalized
+
+
+VehicleVerificationStatus = Literal["not_submitted", "pending", "verified", "rejected"]
+
+
 class VehicleBase(BaseModel):
     type: str
     fuel: str
@@ -57,6 +106,12 @@ class VehicleBase(BaseModel):
     image_urls: list[str] = Field(default_factory=list)
     image_url: Optional[str] = None
     dynamic_pricing: Optional["VehicleDynamicPricing"] = None
+    verification_documents: VehicleVerificationDocuments = Field(default_factory=VehicleVerificationDocuments)
+    verification_status: VehicleVerificationStatus = "not_submitted"
+    verification_notes: str | None = None
+    verification_submitted_at: str | None = None
+    verification_verified_at: str | None = None
+    verification_verified_by: str | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -97,6 +152,12 @@ class VehicleUpdate(BaseModel):
     image_urls: Optional[list[str]] = None
     image_url: Optional[str] = None
     dynamic_pricing: Optional["VehicleDynamicPricing"] = None
+    verification_documents: Optional[VehicleVerificationDocuments] = None
+    verification_status: Optional[VehicleVerificationStatus] = None
+    verification_notes: Optional[str] = None
+    verification_submitted_at: Optional[str] = None
+    verification_verified_at: Optional[str] = None
+    verification_verified_by: Optional[str] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -150,6 +211,15 @@ class Vehicle(VehicleBase):
                     "/uploads/vehicles/example2.jpg",
                 ],
                 "image_url": "/uploads/vehicles/example.jpg",
+                "verification_documents": {
+                    "vehicle_book_url": "/uploads/vehicle-documents/veh_12345_book.pdf",
+                    "vehicle_license_url": "/uploads/vehicle-documents/veh_12345_license.pdf",
+                },
+                "verification_status": "verified",
+                "verification_notes": "Registration documents confirmed.",
+                "verification_submitted_at": "2026-05-24T08:30:00+00:00",
+                "verification_verified_at": "2026-05-25T09:00:00+00:00",
+                "verification_verified_by": "admin",
                 "dynamic_pricing": {
                     "enabled": True,
                     "weekend_multiplier": 1.1,

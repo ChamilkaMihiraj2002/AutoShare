@@ -77,6 +77,7 @@ def calculate_vehicle_pricing(
     vehicle: dict,
     start_date: datetime | str,
     end_date: datetime | str,
+    dynamic_pricing: dict | None = None,
     currency: str = "LKR",
     pickup_latitude: float | None = None,
     pickup_longitude: float | None = None,
@@ -91,15 +92,15 @@ def calculate_vehicle_pricing(
 
     booking_days = _date_span(start_dt.date(), end_dt.date())
     base_daily_price = round(float(vehicle.get("price", 0) or 0), 2)
-    dynamic_pricing = vehicle.get("dynamic_pricing") or {}
-    is_dynamic_enabled = bool(dynamic_pricing.get("enabled"))
-    weekend_multiplier = float(dynamic_pricing.get("weekend_multiplier", 1.0) or 1.0)
-    holiday_multiplier = float(dynamic_pricing.get("holiday_multiplier", 1.0) or 1.0)
-    rainy_weather_multiplier = float(dynamic_pricing.get("rainy_weather_multiplier", 1.0) or 1.0)
-    severe_weather_multiplier = float(dynamic_pricing.get("severe_weather_multiplier", 1.0) or 1.0)
-    distance_included_km = float(dynamic_pricing.get("distance_included_km", 0.0) or 0.0)
-    distance_surcharge_per_km = float(dynamic_pricing.get("distance_surcharge_per_km", 0.0) or 0.0)
-    custom_date_multipliers = dynamic_pricing.get("custom_date_multipliers") or []
+    resolved_dynamic_pricing = dynamic_pricing if dynamic_pricing is not None else (vehicle.get("dynamic_pricing") or {})
+    is_dynamic_enabled = bool(resolved_dynamic_pricing.get("enabled"))
+    weekend_multiplier = float(resolved_dynamic_pricing.get("weekend_multiplier", 1.0) or 1.0)
+    holiday_multiplier = float(resolved_dynamic_pricing.get("holiday_multiplier", 1.0) or 1.0)
+    rainy_weather_multiplier = float(resolved_dynamic_pricing.get("rainy_weather_multiplier", 1.0) or 1.0)
+    severe_weather_multiplier = float(resolved_dynamic_pricing.get("severe_weather_multiplier", 1.0) or 1.0)
+    distance_included_km = float(resolved_dynamic_pricing.get("distance_included_km", 0.0) or 0.0)
+    distance_surcharge_per_km = float(resolved_dynamic_pricing.get("distance_surcharge_per_km", 0.0) or 0.0)
+    custom_date_multipliers = resolved_dynamic_pricing.get("custom_date_multipliers") or []
     holiday_dates = get_public_holiday_dates(country_code, {booking_day.year for booking_day in booking_days}) if is_dynamic_enabled else set()
     weather_latitude = destination_latitude if destination_latitude is not None else pickup_latitude
     weather_longitude = destination_longitude if destination_longitude is not None else pickup_longitude
@@ -160,7 +161,7 @@ def calculate_vehicle_pricing(
         )
 
     subtotal = round(subtotal, 2)
-    duration_discount_percentage = _resolve_duration_discount(len(booking_days), dynamic_pricing)
+    duration_discount_percentage = _resolve_duration_discount(len(booking_days), resolved_dynamic_pricing)
     duration_discount_amount = round(subtotal * (duration_discount_percentage / 100), 2)
     try:
         distance_km = get_route_distance_km(
