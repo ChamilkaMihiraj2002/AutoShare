@@ -2,6 +2,10 @@ import type {
   AdminAuthResponse,
   AdminBookingsResponse,
   AdminDashboardOverview,
+  AdminDynamicPricingSettings,
+  AdminDynamicPricingSettingsResponse,
+  AdminVehicleVerificationItem,
+  AdminVehiclesResponse,
   AdminUsersResponse,
   AuthResponse,
   OwnerEarningsOverview,
@@ -17,7 +21,7 @@ import { notifyProfileUpdated } from './profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-type RequestMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type RawVehicleApi = VehicleApi & { _id?: string };
 type RawRentApi = RentApi & { _id?: string };
 
@@ -148,6 +152,30 @@ export async function getAdminBookings(): Promise<AdminBookingsResponse> {
   return adminApiRequest<AdminBookingsResponse>('/admin/bookings');
 }
 
+export async function getAdminVehicles(): Promise<AdminVehiclesResponse> {
+  return adminApiRequest<AdminVehiclesResponse>('/admin/vehicles');
+}
+
+export async function getAdminPricingSettings(): Promise<AdminDynamicPricingSettingsResponse> {
+  return adminApiRequest<AdminDynamicPricingSettingsResponse>('/admin/pricing-settings');
+}
+
+export async function updateAdminPricingSettings(
+  payload: AdminDynamicPricingSettings,
+): Promise<AdminDynamicPricingSettingsResponse> {
+  return adminApiRequest<AdminDynamicPricingSettingsResponse>('/admin/pricing-settings', 'PUT', payload);
+}
+
+export async function updateAdminVehicleVerification(
+  vehicleId: string,
+  payload: {
+    verification_status: 'verified' | 'rejected';
+    verification_notes?: string;
+  },
+): Promise<AdminVehicleVerificationItem> {
+  return adminApiRequest<AdminVehicleVerificationItem>(`/admin/vehicles/${vehicleId}/verification`, 'PATCH', payload);
+}
+
 export async function loginWithEmail(email: string, password: string): Promise<AuthResponse> {
   return apiRequest<AuthResponse>('/auth/login', 'POST', { email, password });
 }
@@ -244,7 +272,6 @@ export async function createMyVehicle(payload: {
   year: number;
   model: string;
   seats: number;
-  dynamic_pricing?: VehicleApi['dynamic_pricing'];
 }): Promise<VehicleApi> {
   const vehicle = await apiRequest<RawVehicleApi>('/vehicles/', 'POST', payload, true);
   return normalizeVehicle(vehicle);
@@ -265,7 +292,6 @@ export async function updateMyVehicle(
     seats?: number;
     image_urls?: string[];
     image_url?: string;
-    dynamic_pricing?: VehicleApi['dynamic_pricing'];
   },
 ): Promise<VehicleApi> {
   const vehicle = await apiRequest<RawVehicleApi>(`/vehicles/${vehicleId}`, 'PATCH', payload, true);
@@ -286,6 +312,49 @@ export async function uploadVehicleImage(vehicleId: string, file: File): Promise
   formData.append('image', file);
 
   const response = await fetch(`${API_BASE_URL}/vehicles/${vehicleId}/image`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Request failed (${response.status})`;
+    try {
+      const errorData = await response.json();
+      const detail = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+      if (detail) errorMessage = detail;
+    } catch {
+      // Keep generic error.
+    }
+    if (response.status === 401) {
+      clearAuthToken();
+    }
+    throw new Error(errorMessage);
+  }
+
+  const vehicle = (await response.json()) as RawVehicleApi;
+  return normalizeVehicle(vehicle);
+}
+
+export async function uploadVehicleVerificationDocuments(
+  vehicleId: string,
+  payload: {
+    vehicleBook: File;
+    vehicleLicense: File;
+  },
+): Promise<VehicleApi> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('You are not signed in.');
+  }
+
+  const formData = new FormData();
+  formData.append('vehicle_book', payload.vehicleBook);
+  formData.append('vehicle_license', payload.vehicleLicense);
+
+  const response = await fetch(`${API_BASE_URL}/vehicles/${vehicleId}/verification-documents`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

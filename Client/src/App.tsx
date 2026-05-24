@@ -34,6 +34,8 @@ import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminBookings from './pages/admin/AdminBookings';
+import AdminVehicles from './pages/admin/AdminVehicles';
+import AdminPricing from './pages/admin/AdminPricing';
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -87,6 +89,8 @@ const AppRoutes = () => {
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="bookings" element={<AdminBookings />} />
+            <Route path="vehicles" element={<AdminVehicles />} />
+            <Route path="pricing" element={<AdminPricing />} />
           </Route>
         </Routes>
       </main>

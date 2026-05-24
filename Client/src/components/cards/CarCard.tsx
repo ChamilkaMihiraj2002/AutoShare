@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, MapPin, Users } from 'lucide-react';
+import { Star, MapPin, Users, BadgeCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatLkr } from '../../lib/currency';
 
@@ -12,9 +12,10 @@ interface CarProps {
   reviews: number;
   location: string;
   seats: number;
+  verified?: boolean;
 }
 
-const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, location, seats }) => {
+const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, location, seats, verified }) => {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
       <div className="relative h-48">
@@ -25,7 +26,15 @@ const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, 
       </div>
 
       <div className="p-5">
-        <h3 className="text-lg font-bold text-gray-800">{name}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-800">{name}</h3>
+          {verified && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-bold text-emerald-700">
+              <BadgeCheck className="h-3.5 w-3.5" />
+              Verified
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1 mt-1 text-sm">
           <Star className="w-4 h-4 fill-orange-400 text-orange-400" />
           <span className="font-medium">{rating}</span>
@@ -53,6 +62,7 @@ const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, 
               reviews,
               location,
               seats,
+              verified,
             },
           }}
           className="block w-full mt-5 bg-[#003049] text-white py-2.5 rounded-lg font-semibold hover:bg-opacity-90 transition text-center"
