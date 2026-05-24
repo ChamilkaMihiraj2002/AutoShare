@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Trash2, ImagePlus, X } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, ImagePlus, X, BadgeCheck, ShieldAlert, FileText } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
-import { deleteMyVehicle, deleteVehicleImage, getMyVehicleById, updateMyVehicle, uploadVehicleImage } from '../../lib/api';
+import { deleteMyVehicle, deleteVehicleImage, getMyVehicleById, updateMyVehicle, uploadVehicleImage, uploadVehicleVerificationDocuments } from '../../lib/api';
 import { getPrimaryVehicleImage, resolveBackendAssetUrl } from '../../lib/profile';
 
 type Toast = {
@@ -20,9 +20,15 @@ const VehicleManage = () => {
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [uploadingImage, setUploadingImage] = React.useState(false);
+  const [uploadingVerification, setUploadingVerification] = React.useState(false);
   const [deletingImageUrl, setDeletingImageUrl] = React.useState<string | null>(null);
   const [error, setError] = React.useState('');
   const [rawImageUrls, setRawImageUrls] = React.useState<string[]>([]);
+  const [verificationStatus, setVerificationStatus] = React.useState<'not_submitted' | 'pending' | 'verified' | 'rejected'>('not_submitted');
+  const [verificationNotes, setVerificationNotes] = React.useState<string>('');
+  const [verificationDocs, setVerificationDocs] = React.useState<{ vehicleBookUrl?: string | null; vehicleLicenseUrl?: string | null }>({});
+  const [vehicleBookFile, setVehicleBookFile] = React.useState<File | null>(null);
+  const [vehicleLicenseFile, setVehicleLicenseFile] = React.useState<File | null>(null);
 
   const [confirmType, setConfirmType] = React.useState<'vehicle' | 'image' | null>(null);
   const [confirmImageUrl, setConfirmImageUrl] = React.useState<string | null>(null);
@@ -41,15 +47,6 @@ const VehicleManage = () => {
     location: '',
     availability: true,
     imageUrl: '',
-    dynamicPricingEnabled: false,
-    weekendMultiplier: '1',
-    weeklyDiscountPercentage: '0',
-    monthlyDiscountPercentage: '0',
-    holidayMultiplier: '1.15',
-    rainyWeatherMultiplier: '1.05',
-    severeWeatherMultiplier: '1.12',
-    distanceIncludedKm: '10',
-    distanceSurchargePerKm: '15',
   });
 
   const showToast = React.useCallback((type: Toast['type'], message: string) => {
@@ -83,15 +80,6 @@ const VehicleManage = () => {
         location: vehicle.location,
         availability: vehicle.availability,
         imageUrl: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
-        dynamicPricingEnabled: vehicle.dynamic_pricing?.enabled ?? false,
-        weekendMultiplier: String(vehicle.dynamic_pricing?.weekend_multiplier ?? 1),
-        weeklyDiscountPercentage: String(vehicle.dynamic_pricing?.weekly_discount_percentage ?? 0),
-        monthlyDiscountPercentage: String(vehicle.dynamic_pricing?.monthly_discount_percentage ?? 0),
-        holidayMultiplier: String(vehicle.dynamic_pricing?.holiday_multiplier ?? 1.15),
-        rainyWeatherMultiplier: String(vehicle.dynamic_pricing?.rainy_weather_multiplier ?? 1.05),
-        severeWeatherMultiplier: String(vehicle.dynamic_pricing?.severe_weather_multiplier ?? 1.12),
-        distanceIncludedKm: String(vehicle.dynamic_pricing?.distance_included_km ?? 10),
-        distanceSurchargePerKm: String(vehicle.dynamic_pricing?.distance_surcharge_per_km ?? 15),
       });
       setRawImageUrls(
         vehicle.image_urls && vehicle.image_urls.length > 0
@@ -100,6 +88,12 @@ const VehicleManage = () => {
             ? [vehicle.image_url]
             : [],
       );
+      setVerificationStatus(vehicle.verification_status ?? 'not_submitted');
+      setVerificationNotes(vehicle.verification_notes ?? '');
+      setVerificationDocs({
+        vehicleBookUrl: vehicle.verification_documents?.vehicle_book_url,
+        vehicleLicenseUrl: vehicle.verification_documents?.vehicle_license_url,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load vehicle');
     } finally {
@@ -120,6 +114,47 @@ const VehicleManage = () => {
     }
     setForm((prev) => ({ ...prev, [name]: value }));
   };
+
+  const submitVerificationDocuments = async () => {
+    if (!id) return;
+    if (!vehicleBookFile || !vehicleLicenseFile) {
+      showToast('error', 'Select both the vehicle book and vehicle license files before submitting.');
+      return;
+    }
+    setUploadingVerification(true);
+    try {
+      const updated = await uploadVehicleVerificationDocuments(id, {
+        vehicleBook: vehicleBookFile,
+        vehicleLicense: vehicleLicenseFile,
+      });
+      setVerificationStatus(updated.verification_status ?? 'pending');
+      setVerificationNotes(updated.verification_notes ?? '');
+      setVerificationDocs({
+        vehicleBookUrl: updated.verification_documents?.vehicle_book_url,
+        vehicleLicenseUrl: updated.verification_documents?.vehicle_license_url,
+      });
+      setVehicleBookFile(null);
+      setVehicleLicenseFile(null);
+      showToast('success', 'Verification documents submitted for admin review.');
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Failed to upload verification documents');
+    } finally {
+      setUploadingVerification(false);
+    }
+  };
+
+  const verificationBadge = React.useMemo(() => {
+    if (verificationStatus === 'verified') {
+      return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700"><BadgeCheck size={14} /> Verified</span>;
+    }
+    if (verificationStatus === 'pending') {
+      return <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700"><ShieldAlert size={14} /> Pending Admin Review</span>;
+    }
+    if (verificationStatus === 'rejected') {
+      return <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700"><ShieldAlert size={14} /> Rejected</span>;
+    }
+    return <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"><FileText size={14} /> Documents Needed</span>;
+  }, [verificationStatus]);
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -161,18 +196,6 @@ const VehicleManage = () => {
         seats,
         location: form.location.trim(),
         availability: form.availability,
-        dynamic_pricing: {
-          enabled: form.dynamicPricingEnabled,
-          weekend_multiplier: Number(form.weekendMultiplier) || 1,
-          weekly_discount_percentage: Number(form.weeklyDiscountPercentage) || 0,
-          monthly_discount_percentage: Number(form.monthlyDiscountPercentage) || 0,
-          holiday_multiplier: Number(form.holidayMultiplier) || 1.15,
-          rainy_weather_multiplier: Number(form.rainyWeatherMultiplier) || 1.05,
-          severe_weather_multiplier: Number(form.severeWeatherMultiplier) || 1.12,
-          distance_included_km: Number(form.distanceIncludedKm) || 0,
-          distance_surcharge_per_km: Number(form.distanceSurchargePerKm) || 0,
-          custom_date_multipliers: [],
-        },
       });
       showToast('success', 'Vehicle updated successfully.');
     } catch (err) {
@@ -267,12 +290,14 @@ const VehicleManage = () => {
   return (
     <div className="space-y-6 max-w-4xl relative">
       <LoadingOverlay
-        show={saving || deleting || uploadingImage || !!deletingImageUrl}
+        show={saving || deleting || uploadingImage || uploadingVerification || !!deletingImageUrl}
         message={
           deleting
             ? 'Deleting vehicle...'
             : deletingImageUrl
               ? 'Deleting image...'
+              : uploadingVerification
+                ? 'Uploading verification documents...'
               : uploadingImage
                 ? 'Uploading images...'
                 : 'Saving changes...'
@@ -282,6 +307,7 @@ const VehicleManage = () => {
         <Link to="/dashboard/vehicles" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900">
           <ArrowLeft size={16} /> Back to My Vehicles
         </Link>
+        {verificationBadge}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -325,6 +351,82 @@ const VehicleManage = () => {
         )}
 
         <form onSubmit={handleSave} className="p-6 space-y-4">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Vehicle Verification</h3>
+                <p className="mt-1 text-sm text-gray-500">Admins review your vehicle book and license details before this vehicle receives the verified badge.</p>
+                {verificationNotes && <p className="mt-3 rounded-xl bg-white px-3 py-2 text-sm text-gray-600 border border-gray-200">{verificationNotes}</p>}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-white p-3 border border-gray-200">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Vehicle Book</p>
+                  {verificationDocs.vehicleBookUrl ? (
+                    <a
+                      href={resolveBackendAssetUrl(verificationDocs.vehicleBookUrl, verificationDocs.vehicleBookUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex text-sm font-semibold text-[#003049] hover:text-orange-500"
+                    >
+                      View uploaded file
+                    </a>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-500">Not uploaded yet</p>
+                  )}
+                </div>
+                <div className="rounded-xl bg-white p-3 border border-gray-200">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Vehicle License</p>
+                  {verificationDocs.vehicleLicenseUrl ? (
+                    <a
+                      href={resolveBackendAssetUrl(verificationDocs.vehicleLicenseUrl, verificationDocs.vehicleLicenseUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex text-sm font-semibold text-[#003049] hover:text-orange-500"
+                    >
+                      View uploaded file
+                    </a>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-500">Not uploaded yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700">
+                Replace Vehicle Book
+                <input
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg"
+                  onChange={(event) => setVehicleBookFile(event.target.files?.[0] ?? null)}
+                  className="mt-2 block w-full text-sm"
+                  disabled={uploadingVerification}
+                />
+                {vehicleBookFile && <span className="mt-2 block text-xs text-gray-500">{vehicleBookFile.name}</span>}
+              </label>
+              <label className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700">
+                Replace Vehicle License
+                <input
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg"
+                  onChange={(event) => setVehicleLicenseFile(event.target.files?.[0] ?? null)}
+                  className="mt-2 block w-full text-sm"
+                  disabled={uploadingVerification}
+                />
+                {vehicleLicenseFile && <span className="mt-2 block text-xs text-gray-500">{vehicleLicenseFile.name}</span>}
+              </label>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void submitVerificationDocuments()}
+                disabled={uploadingVerification || !vehicleBookFile || !vehicleLicenseFile}
+                className="rounded-xl bg-[#003049] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {uploadingVerification ? 'Submitting...' : 'Submit Verification Documents'}
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
@@ -372,47 +474,7 @@ const VehicleManage = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (Rs)</label>
               <input type="number" step="0.01" min="1" name="price" value={form.price} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
-            </div>
-            <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-4">
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-                <input type="checkbox" name="dynamicPricingEnabled" checked={form.dynamicPricingEnabled} onChange={handleChange} className="rounded border-gray-300" />
-                Enable dynamic pricing
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Weekend Multiplier</label>
-                  <input type="number" step="0.01" min="1" name="weekendMultiplier" value={form.weekendMultiplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">7+ Day Discount (%)</label>
-                  <input type="number" step="0.01" min="0" max="100" name="weeklyDiscountPercentage" value={form.weeklyDiscountPercentage} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">30+ Day Discount (%)</label>
-                  <input type="number" step="0.01" min="0" max="100" name="monthlyDiscountPercentage" value={form.monthlyDiscountPercentage} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Holiday Multiplier</label>
-                  <input type="number" step="0.01" min="1" name="holidayMultiplier" value={form.holidayMultiplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rain Multiplier</label>
-                  <input type="number" step="0.01" min="1" name="rainyWeatherMultiplier" value={form.rainyWeatherMultiplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Severe Weather Multiplier</label>
-                  <input type="number" step="0.01" min="1" name="severeWeatherMultiplier" value={form.severeWeatherMultiplier} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Included Distance (km)</label>
-                  <input type="number" step="0.01" min="0" name="distanceIncludedKm" value={form.distanceIncludedKm} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Extra Fee Per km</label>
-                  <input type="number" step="0.01" min="0" name="distanceSurchargePerKm" value={form.distanceSurchargePerKm} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" />
-                </div>
-              </div>
-              <p className="text-xs text-gray-500">Live quotes use Open-Meteo weather, Nager.Date public holidays, and map-based trip distance from the booking flow.</p>
+              <p className="mt-2 text-xs text-gray-500">Admins manage the dynamic pricing rules that adjust live booking quotes across all vehicles.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>

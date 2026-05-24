@@ -45,6 +45,7 @@ const SearchVehicles: React.FC = () => {
                     type: vehicle.type,
                     fuelType: vehicle.fuel,
                     image: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
+                    verified: vehicle.verification_status === 'verified',
                 }));
                 setVehicles(mapped);
             } catch (err) {

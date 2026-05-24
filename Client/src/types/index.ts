@@ -9,6 +9,7 @@ export interface Car {
   location: string;
   seats: number;
   image: string;
+  verified?: boolean;
   type?: string;
   fuelType?: string;
   coordinates?: {
@@ -48,6 +49,8 @@ export interface AdminOverviewStats {
   total_vehicle_owners: number;
   active_vehicles: number;
   inactive_vehicles: number;
+  pending_vehicle_verifications: number;
+  verified_vehicles: number;
   current_rents: number;
   completed_rents: number;
 }
@@ -100,6 +103,49 @@ export interface AdminBookingsResponse {
   bookings: AdminBookingItem[];
 }
 
+export interface AdminVehicleVerificationItem {
+  vehicle_id: string;
+  owner_uid: string;
+  brand: string;
+  model: string;
+  year: number;
+  location: string;
+  availability: boolean;
+  verification_status: 'not_submitted' | 'pending' | 'verified' | 'rejected';
+  verification_notes?: string | null;
+  verification_submitted_at?: string | null;
+  verification_verified_at?: string | null;
+  verification_verified_by?: string | null;
+  vehicle_book_url?: string | null;
+  vehicle_license_url?: string | null;
+}
+
+export interface AdminVehiclesResponse {
+  vehicles: AdminVehicleVerificationItem[];
+}
+
+export interface AdminDynamicPricingSettings {
+  enabled: boolean;
+  weekend_multiplier: number;
+  weekly_discount_percentage: number;
+  monthly_discount_percentage: number;
+  holiday_multiplier: number;
+  rainy_weather_multiplier: number;
+  severe_weather_multiplier: number;
+  distance_included_km: number;
+  distance_surcharge_per_km: number;
+  custom_date_multipliers: CustomDateMultiplier[];
+}
+
+export interface AdminDynamicPricingSettingsResponse {
+  settings: AdminDynamicPricingSettings;
+}
+
+export interface VehicleVerificationDocuments {
+  vehicle_book_url?: string | null;
+  vehicle_license_url?: string | null;
+}
+
 export type UserRole = 'user' | 'vehicle_owner' | 'renter';
 
 export interface UserProfile {
@@ -135,6 +181,12 @@ export interface VehicleApi {
   image_urls?: string[] | null;
   image_url?: string | null;
   dynamic_pricing?: VehicleDynamicPricing | null;
+  verification_documents?: VehicleVerificationDocuments | null;
+  verification_status?: 'not_submitted' | 'pending' | 'verified' | 'rejected';
+  verification_notes?: string | null;
+  verification_submitted_at?: string | null;
+  verification_verified_at?: string | null;
+  verification_verified_by?: string | null;
 }
 
 export interface CustomDateMultiplier {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar } from 'lucide-react';
+import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar, BadgeCheck } from 'lucide-react';
 import LoadingScreen from '../components/common/LoadingScreen';
 import { getPublicVehicleById } from '../lib/api';
 import { getPrimaryVehicleImage } from '../lib/profile';
@@ -43,6 +43,7 @@ const VehicleDetails: React.FC = () => {
                         type: result.type,
                         fuelType: result.fuel,
                         image: getPrimaryVehicleImage(result.image_urls, result.image_url),
+                        verified: result.verification_status === 'verified',
                     });
                     return;
                 }
@@ -134,7 +135,15 @@ const VehicleDetails: React.FC = () => {
 
                         {/* Vehicle Info */}
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">{vehicle.name}</h1>
+                            <div className="mb-2 flex flex-wrap items-center gap-3">
+                                <h1 className="text-3xl font-bold text-gray-900">{vehicle.name}</h1>
+                                {vehicle.verified && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                                        <BadgeCheck size={14} />
+                                        Verified Vehicle
+                                    </span>
+                                )}
+                            </div>
                             <div className="flex items-center gap-4 text-gray-600 mb-6">
                                 <div className="flex items-center gap-1">
                                     <Star className="text-orange-400 fill-orange-400" size={18} />

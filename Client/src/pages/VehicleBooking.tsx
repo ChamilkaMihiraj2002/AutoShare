@@ -122,12 +122,15 @@ const VehicleBooking: React.FC = () => {
 
   const duration = calculateDays(startDate, endDate);
   const serviceFee = 9;
-  const baseRent = pricingQuote?.total ?? (vehicle ? vehicle.price * duration : 0);
+  const vehicleSubtotal = pricingQuote
+    ? pricingQuote.subtotal - pricingQuote.duration_discount_amount
+    : (vehicle ? vehicle.price * duration : 0);
+  const distanceFee = pricingQuote?.distance_fee ?? 0;
   const insurancePerDay = insurancePlan === 'basic' ? 0 : insurancePlan === 'standard' ? 1200 : 2500;
   const insuranceTotal = insurancePerDay * duration;
   const deliveryFee = pickupOption === 'delivery' ? 1500 : 0;
   const childSeatTotal = childSeatCount * 500 * duration;
-  const total = baseRent + serviceFee + insuranceTotal + deliveryFee + childSeatTotal;
+  const total = vehicleSubtotal + distanceFee + serviceFee + insuranceTotal + deliveryFee + childSeatTotal;
   const tripDistanceKm = pricingQuote?.distance_km ?? null;
 
   useEffect(() => {
@@ -447,7 +450,7 @@ const VehicleBooking: React.FC = () => {
                   <span>
                     {pricingQuote ? `${pricingQuote.total_days} dynamic days` : `${formatLkr(vehicle.price)} × ${duration} days`}
                   </span>
-                  <span>{formatLkr(baseRent)}</span>
+                  <span>{formatLkr(vehicleSubtotal)}</span>
                 </div>
                 {pricingQuote && pricingQuote.duration_discount_amount > 0 && (
                   <div className="flex justify-between text-green-700">
@@ -455,10 +458,10 @@ const VehicleBooking: React.FC = () => {
                     <span>-{formatLkr(pricingQuote.duration_discount_amount)}</span>
                   </div>
                 )}
-                {pricingQuote && pricingQuote.distance_fee > 0 && (
+                {distanceFee > 0 && pricingQuote && (
                   <div className="flex justify-between text-gray-600">
                     <span>Distance fee ({pricingQuote.distance_km.toFixed(1)} km trip)</span>
-                    <span>{formatLkr(pricingQuote.distance_fee)}</span>
+                    <span>{formatLkr(distanceFee)}</span>
                   </div>
                 )}
                 {insuranceTotal > 0 && (
