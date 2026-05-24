@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List
 
-from app.core.db import get_database
+from app.core.db import get_admin_database, get_database
 from app.core.auth_deps import get_current_user
 from app.schemas import RentCreate, Rent, RentUpdate, OwnerEarningsOverview
 from app.repositories.rent import (
@@ -18,6 +18,7 @@ from app.repositories.rent import (
 from app.repositories.vehicle import get_vehicle_by_id, update_vehicle
 from app.services.owner_earnings import get_owner_earnings_overview
 from app.services.audit_log import create_audit_log
+from app.services.dynamic_pricing_settings import get_global_dynamic_pricing_settings
 from app.services.vehicle_pricing import calculate_vehicle_pricing
 
 router = APIRouter(
@@ -40,6 +41,7 @@ async def create_rent_endpoint(
     payload: RentCreate,
     decoded_token: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
+    admin_db: AsyncIOMotorDatabase = Depends(get_admin_database),
 ):
     renter_uid = decoded_token.get("uid")
     vehicle = await get_vehicle_by_id(db=db, vehicle_id=payload.vehicle_id)
@@ -51,10 +53,12 @@ async def create_rent_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vehicle is not currently available")
 
     try:
+        dynamic_pricing = await get_global_dynamic_pricing_settings(admin_db)
         pricing_snapshot = calculate_vehicle_pricing(
             vehicle=vehicle,
             start_date=payload.start_date,
             end_date=payload.end_date,
+            dynamic_pricing=dynamic_pricing,
             pickup_latitude=payload.pickup_latitude,
             pickup_longitude=payload.pickup_longitude,
             destination_latitude=payload.destination_latitude,

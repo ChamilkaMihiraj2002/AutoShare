@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from bson import ObjectId
+from bson.errors import InvalidId
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -15,10 +17,20 @@ from app.schemas.admin_schema import (
     AdminBookingItem,
     AdminBookingsResponse,
     AdminDashboardOverview,
+    AdminDynamicPricingSettings,
+    AdminDynamicPricingSettingsResponse,
     AdminLoginRequest,
     AdminOverviewStats,
+    AdminVehicleVerificationItem,
+    AdminVehicleVerificationUpdateRequest,
+    AdminVehiclesResponse,
     AdminUserItem,
     AdminUsersResponse,
+)
+from app.services.audit_log import create_audit_log
+from app.services.dynamic_pricing_settings import (
+    get_global_dynamic_pricing_settings,
+    update_global_dynamic_pricing_settings,
 )
 
 
@@ -29,6 +41,15 @@ def _serialize_dt(value: object) -> str | None:
     if isinstance(value, datetime):
         return value.isoformat()
     return None
+
+
+def _vehicle_id_filters(vehicle_id: str) -> list[dict[str, object]]:
+    filters: list[dict[str, object]] = [{"_id": vehicle_id}]
+    try:
+        filters.append({"_id": ObjectId(vehicle_id)})
+    except (InvalidId, TypeError):
+        pass
+    return filters
 
 
 async def _collection_docs(db: AsyncIOMotorDatabase, collection_name: str, limit: int = 1000) -> list[dict]:
@@ -50,6 +71,49 @@ def _get_roles(user: dict) -> list[str]:
     if isinstance(role, str) and role:
         return [role]
     return []
+
+
+def _name_from_email(email: object) -> str | None:
+    if not isinstance(email, str):
+        return None
+
+    local = email.split("@")[0].strip()
+    if not local:
+        return None
+
+    parts = [part for part in local.replace(".", " ").replace("_", " ").replace("-", " ").split() if part]
+    if not parts:
+        return None
+    return " ".join(part[:1].upper() + part[1:] for part in parts)
+
+
+def _get_user_display_name(user: dict) -> str | None:
+    for key in ("full_name", "name", "display_name"):
+        value = user.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return _name_from_email(user.get("email"))
+
+
+def _serialize_vehicle_verification_item(vehicle: dict) -> AdminVehicleVerificationItem:
+    documents = vehicle.get("verification_documents") or {}
+    return AdminVehicleVerificationItem(
+        vehicle_id=str(vehicle.get("_id", "")),
+        owner_uid=vehicle.get("owner_uid", ""),
+        brand=vehicle.get("brand", ""),
+        model=vehicle.get("model", ""),
+        year=int(vehicle.get("year", 0) or 0),
+        location=vehicle.get("location", ""),
+        availability=bool(vehicle.get("availability")),
+        verification_status=vehicle.get("verification_status", "not_submitted"),
+        verification_notes=vehicle.get("verification_notes"),
+        verification_submitted_at=vehicle.get("verification_submitted_at"),
+        verification_verified_at=vehicle.get("verification_verified_at"),
+        verification_verified_by=vehicle.get("verification_verified_by"),
+        vehicle_book_url=documents.get("vehicle_book_url"),
+        vehicle_license_url=documents.get("vehicle_license_url"),
+    )
 
 
 @router.post("/auth/login", response_model=AdminAuthResponse)
@@ -113,6 +177,8 @@ async def admin_dashboard_overview(
             total_vehicle_owners=sum(1 for user in users if "vehicle_owner" in _get_roles(user)),
             active_vehicles=sum(1 for vehicle in vehicles if bool(vehicle.get("availability"))),
             inactive_vehicles=sum(1 for vehicle in vehicles if not bool(vehicle.get("availability"))),
+            pending_vehicle_verifications=sum(1 for vehicle in vehicles if vehicle.get("verification_status") == "pending"),
+            verified_vehicles=sum(1 for vehicle in vehicles if vehicle.get("verification_status") == "verified"),
             current_rents=sum(1 for rent in rents if rent.get("booking_status") == "accepted"),
             completed_rents=sum(1 for rent in rents if rent.get("booking_status") == "completed"),
         ),
@@ -150,7 +216,7 @@ async def admin_list_users(
             AdminUserItem(
                 uid=str(user.get("_id", "")),
                 email=user.get("email"),
-                full_name=user.get("full_name"),
+                full_name=_get_user_display_name(user),
                 phone=user.get("phone"),
                 roles=_get_roles(user),
                 address=user.get("address"),
@@ -183,3 +249,116 @@ async def admin_list_bookings(
             for booking in normalized
         ]
     )
+
+
+@router.get("/pricing-settings", response_model=AdminDynamicPricingSettingsResponse)
+async def admin_get_dynamic_pricing_settings(
+    current_admin: dict = Depends(get_current_admin),
+    admin_db: AsyncIOMotorDatabase = Depends(get_admin_database),
+):
+    _ = current_admin
+    settings = await get_global_dynamic_pricing_settings(admin_db)
+    return AdminDynamicPricingSettingsResponse(settings=AdminDynamicPricingSettings(**settings))
+
+
+@router.put("/pricing-settings", response_model=AdminDynamicPricingSettingsResponse)
+async def admin_update_dynamic_pricing_settings(
+    payload: AdminDynamicPricingSettings,
+    current_admin: dict = Depends(get_current_admin),
+    admin_db: AsyncIOMotorDatabase = Depends(get_admin_database),
+):
+    admin_username = current_admin.get("sub", "admin")
+    settings = await update_global_dynamic_pricing_settings(
+        admin_db,
+        settings=payload.model_dump(mode="json"),
+    )
+    await create_audit_log(
+        admin_db,
+        action="admin.dynamic_pricing.update",
+        outcome="success",
+        message="Admin updated global dynamic pricing settings",
+        actor_uid=admin_username,
+        entity_type="pricing_settings",
+        entity_id="global_dynamic_pricing",
+        metadata={"enabled": settings.get("enabled")},
+    )
+    return AdminDynamicPricingSettingsResponse(settings=AdminDynamicPricingSettings(**settings))
+
+
+@router.get("/vehicles", response_model=AdminVehiclesResponse)
+async def admin_list_vehicle_verifications(
+    current_admin: dict = Depends(get_current_admin),
+    app_db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    _ = current_admin
+    vehicles = await _collection_docs(app_db, "vehicles")
+    normalized = sorted(
+        vehicles,
+        key=lambda vehicle: (
+            0 if vehicle.get("verification_status") == "pending" else 1,
+            vehicle.get("verification_submitted_at") or "",
+            str(vehicle.get("_id", "")),
+        ),
+        reverse=True,
+    )
+    return AdminVehiclesResponse(
+        vehicles=[_serialize_vehicle_verification_item(vehicle) for vehicle in normalized]
+    )
+
+
+@router.patch("/vehicles/{vehicle_id}/verification", response_model=AdminVehicleVerificationItem)
+async def admin_update_vehicle_verification(
+    vehicle_id: str,
+    payload: AdminVehicleVerificationUpdateRequest,
+    current_admin: dict = Depends(get_current_admin),
+    app_db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    requested_status = (payload.verification_status or "").strip().lower()
+    if requested_status not in {"verified", "rejected"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="verification_status must be either 'verified' or 'rejected'.",
+        )
+
+    vehicle = None
+    matched_filter: dict[str, object] | None = None
+    for candidate_filter in _vehicle_id_filters(vehicle_id):
+        vehicle = await app_db["vehicles"].find_one(candidate_filter)
+        if vehicle:
+            matched_filter = candidate_filter
+            break
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found.")
+
+    documents = vehicle.get("verification_documents") or {}
+    if not documents.get("vehicle_book_url") or not documents.get("vehicle_license_url"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vehicle verification documents are missing.",
+        )
+
+    admin_username = current_admin.get("sub", "admin")
+    update_fields = {
+        "verification_status": requested_status,
+        "verification_notes": payload.verification_notes,
+        "verification_verified_at": datetime.now(timezone.utc).isoformat(),
+        "verification_verified_by": admin_username,
+    }
+    if requested_status == "verified" and not vehicle.get("verification_submitted_at"):
+        update_fields["verification_submitted_at"] = datetime.now(timezone.utc).isoformat()
+
+    await app_db["vehicles"].update_one(matched_filter, {"$set": update_fields})
+    updated_vehicle = await app_db["vehicles"].find_one(matched_filter)
+
+    await create_audit_log(
+        app_db,
+        action="admin.vehicle_verification.update",
+        outcome="success",
+        message=f"Vehicle verification marked as {requested_status}",
+        actor_uid=admin_username,
+        entity_type="vehicle",
+        entity_id=vehicle_id,
+        metadata={"verification_notes": payload.verification_notes},
+    )
+
+    return _serialize_vehicle_verification_item(updated_vehicle or {})

@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import List
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.db import get_database
+from app.core.db import get_admin_database, get_database
 from app.schemas import Vehicle
 from app.repositories.vehicle import get_vehicle_by_id, list_all_vehicles
+from app.services.dynamic_pricing_settings import get_global_dynamic_pricing_settings
 from app.services.vehicle_pricing import calculate_vehicle_pricing
 
 router = APIRouter(tags=["General"])
@@ -39,16 +40,19 @@ async def public_vehicle_pricing_quote(
     destination_longitude: float | None = Query(None),
     country_code: str = Query("LK", min_length=2, max_length=2),
     db: AsyncIOMotorDatabase = Depends(get_database),
+    admin_db: AsyncIOMotorDatabase = Depends(get_admin_database),
 ):
     vehicle = await get_vehicle_by_id(db=db, vehicle_id=vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
     try:
+        dynamic_pricing = await get_global_dynamic_pricing_settings(admin_db)
         quote = calculate_vehicle_pricing(
             vehicle=vehicle,
             start_date=start_date,
             end_date=end_date,
+            dynamic_pricing=dynamic_pricing,
             pickup_latitude=pickup_latitude,
             pickup_longitude=pickup_longitude,
             destination_latitude=destination_latitude,

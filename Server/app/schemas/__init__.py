@@ -20,6 +20,7 @@ from .vehicles_schema import (
     VehicleBase,
     VehicleCreate,
     VehicleDynamicPricing,
+    VehicleVerificationDocuments,
     VehicleUpdate,
     Vehicle,
 )
@@ -46,8 +47,13 @@ from .admin_schema import (
     AdminDashboardOverview,
     AdminUserItem,
     AdminBookingItem,
+    AdminVehicleVerificationItem,
+    AdminVehicleVerificationUpdateRequest,
+    AdminDynamicPricingSettings,
+    AdminDynamicPricingSettingsResponse,
     AdminUsersResponse,
     AdminBookingsResponse,
+    AdminVehiclesResponse,
 )
 
 __all__ = [
@@ -64,6 +70,7 @@ __all__ = [
     "VehicleCreate",
     "VehicleDynamicPricing",
     "CustomDateMultiplier",
+    "VehicleVerificationDocuments",
     "VehicleUpdate",
     "Vehicle",
     "RentBase",
@@ -84,6 +91,11 @@ __all__ = [
     "AdminDashboardOverview",
     "AdminUserItem",
     "AdminBookingItem",
+    "AdminVehicleVerificationItem",
+    "AdminVehicleVerificationUpdateRequest",
+    "AdminDynamicPricingSettings",
+    "AdminDynamicPricingSettingsResponse",
     "AdminUsersResponse",
     "AdminBookingsResponse",
+    "AdminVehiclesResponse",
 ]
