@@ -1,10 +1,10 @@
-import { Car, Star, Zap, Settings, Plus, Loader2 } from 'lucide-react';
+import { Car, Star, Zap, Settings, Plus, Loader2, BadgeCheck, FileText, ShieldAlert } from 'lucide-react';
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
 import Modal from '../../components/common/Modal';
-import { createMyVehicle, getMyVehicles, updateMyVehicle, uploadVehicleImage } from '../../lib/api';
+import { createMyVehicle, getMyVehicles, updateMyVehicle, uploadVehicleImage, uploadVehicleVerificationDocuments } from '../../lib/api';
 import { formatLkr } from '../../lib/currency';
 import { getPrimaryVehicleImage } from '../../lib/profile';
 
@@ -19,6 +19,7 @@ type VehicleCard = {
   earned: string;
   status: string;
   isAvailable: boolean;
+  verificationStatus: 'not_submitted' | 'pending' | 'verified' | 'rejected';
 };
 
 const defaultForm = {
@@ -32,15 +33,6 @@ const defaultForm = {
   seats: '5',
   location: '',
   availability: true,
-  dynamicPricingEnabled: false,
-  weekendMultiplier: '1',
-  weeklyDiscountPercentage: '0',
-  monthlyDiscountPercentage: '0',
-  holidayMultiplier: '1.15',
-  rainyWeatherMultiplier: '1.05',
-  severeWeatherMultiplier: '1.12',
-  distanceIncludedKm: '10',
-  distanceSurchargePerKm: '15',
 };
 
 const MyVehicles = () => {
@@ -54,6 +46,8 @@ const MyVehicles = () => {
   const [createError, setCreateError] = React.useState('');
   const [form, setForm] = React.useState(defaultForm);
   const [imageFiles, setImageFiles] = React.useState<File[]>([]);
+  const [vehicleBookFile, setVehicleBookFile] = React.useState<File | null>(null);
+  const [vehicleLicenseFile, setVehicleLicenseFile] = React.useState<File | null>(null);
   const [togglingAvailabilityId, setTogglingAvailabilityId] = React.useState<string | null>(null);
 
   const inputClassName = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-[#003049] focus:ring-2 focus:ring-[#003049]/10';
@@ -75,6 +69,7 @@ const MyVehicles = () => {
         earned: `${formatLkr(vehicle.price)}/day`,
         status: vehicle.availability ? 'Active' : 'Unavailable',
         isAvailable: vehicle.availability,
+        verificationStatus: vehicle.verification_status ?? 'not_submitted',
       }));
       setVehicles(mapped);
     } catch (err) {
@@ -101,6 +96,8 @@ const MyVehicles = () => {
     setCreateError('');
     setForm(defaultForm);
     setImageFiles([]);
+    setVehicleBookFile(null);
+    setVehicleLicenseFile(null);
     setIsAddModalOpen(true);
   };
 
@@ -121,6 +118,14 @@ const MyVehicles = () => {
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setImageFiles(Array.from(event.target.files || []));
+  };
+
+  const handleVehicleBookChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setVehicleBookFile(event.target.files?.[0] ?? null);
+  };
+
+  const handleVehicleLicenseChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setVehicleLicenseFile(event.target.files?.[0] ?? null);
   };
 
   const handleCreateVehicle = async (event: React.FormEvent) => {
@@ -149,6 +154,10 @@ const MyVehicles = () => {
       setCreateError('Please enter a valid seating capacity.');
       return;
     }
+    if (!vehicleBookFile || !vehicleLicenseFile) {
+      setCreateError('Vehicle book and vehicle license documents are required for verification.');
+      return;
+    }
 
     setCreating(true);
     try {
@@ -163,18 +172,6 @@ const MyVehicles = () => {
         seats,
         location: form.location.trim(),
         availability: form.availability,
-        dynamic_pricing: {
-          enabled: form.dynamicPricingEnabled,
-          weekend_multiplier: Number(form.weekendMultiplier) || 1,
-          weekly_discount_percentage: Number(form.weeklyDiscountPercentage) || 0,
-          monthly_discount_percentage: Number(form.monthlyDiscountPercentage) || 0,
-          holiday_multiplier: Number(form.holidayMultiplier) || 1.15,
-          rainy_weather_multiplier: Number(form.rainyWeatherMultiplier) || 1.05,
-          severe_weather_multiplier: Number(form.severeWeatherMultiplier) || 1.12,
-          distance_included_km: Number(form.distanceIncludedKm) || 0,
-          distance_surcharge_per_km: Number(form.distanceSurchargePerKm) || 0,
-          custom_date_multipliers: [],
-        },
       });
       if (imageFiles.length > 0) {
         if (!created.vehicleid) {
@@ -184,9 +181,15 @@ const MyVehicles = () => {
           await uploadVehicleImage(created.vehicleid, imageFile);
         }
       }
+      await uploadVehicleVerificationDocuments(created.vehicleid, {
+        vehicleBook: vehicleBookFile,
+        vehicleLicense: vehicleLicenseFile,
+      });
       setIsAddModalOpen(false);
       setForm(defaultForm);
       setImageFiles([]);
+      setVehicleBookFile(null);
+      setVehicleLicenseFile(null);
       await loadVehicles();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to add vehicle');
@@ -227,6 +230,38 @@ const MyVehicles = () => {
     return <div className="text-red-600">{error}</div>;
   }
 
+  const verificationBadge = (status: VehicleCard['verificationStatus']) => {
+    if (status === 'verified') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+          <BadgeCheck size={12} /> Verified
+        </span>
+      );
+    }
+
+    if (status === 'pending') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+          <ShieldAlert size={12} /> Pending review
+        </span>
+      );
+    }
+
+    if (status === 'rejected') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold text-rose-700">
+          <ShieldAlert size={12} /> Rejected
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+        <FileText size={12} /> Documents needed
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6 relative">
       <LoadingOverlay show={creating} message="Creating vehicle..." />
@@ -240,12 +275,15 @@ const MyVehicles = () => {
               </div>
             </div>
             <div className="p-4">
-              <div className="flex justify-between items-start mb-2">
+              <div className="flex justify-between items-start mb-2 gap-3">
                 <div>
                   <h3 className="font-bold text-base text-gray-900">{vehicle.name}</h3>
                   <p className="text-xs text-gray-500">{vehicle.year} • {vehicle.type}</p>
                 </div>
-                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">{vehicle.status}</span>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">{vehicle.status}</span>
+                  {verificationBadge(vehicle.verificationStatus)}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 my-3 py-3 border-y border-gray-50">
@@ -310,7 +348,7 @@ const MyVehicles = () => {
                 <p className="text-xs uppercase tracking-[0.22em] text-white/65">Vehicle Listing</p>
                 <h3 className="text-xl font-bold sm:text-2xl">Create a polished listing owners can manage easily</h3>
                 <p className="max-w-2xl text-sm text-white/78">
-                  Add the main vehicle details, choose pricing rules, and upload images in one place.
+                  Add the main vehicle details, set your daily rate, upload images, and submit verification documents in one place.
                 </p>
               </div>
               <label className="inline-flex items-center gap-2 rounded-2xl bg-white/12 px-4 py-3 text-sm font-medium backdrop-blur-sm">
@@ -401,64 +439,11 @@ const MyVehicles = () => {
                   <p className="mt-1 text-sm text-gray-600">
                     {form.price ? `${formatLkr(Number(form.price))}/day` : 'Set a daily price'} • {form.location || 'Add a location'}
                   </p>
+                  <p className="mt-3 text-xs text-gray-500">Admins manage dynamic pricing rules that can adjust the live booking quote for all vehicles.</p>
                 </div>
               </div>
             </section>
           </div>
-
-          <section className={sectionClassName}>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h4 className="text-base font-bold text-gray-900">Dynamic Pricing</h4>
-                <p className="text-xs text-gray-500">Optional pricing rules for holidays, weather, and trip distance.</p>
-              </div>
-              <label className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700">
-                <input
-                  type="checkbox"
-                  name="dynamicPricingEnabled"
-                  checked={form.dynamicPricingEnabled}
-                  onChange={handleFormChange}
-                  className="rounded border-gray-300"
-                />
-                Enable dynamic pricing
-              </label>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Weekend Multiplier</label>
-                <input type="number" step="0.01" min="1" name="weekendMultiplier" value={form.weekendMultiplier} onChange={handleFormChange} className={inputClassName} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">7+ Day Discount (%)</label>
-                <input type="number" step="0.01" min="0" max="100" name="weeklyDiscountPercentage" value={form.weeklyDiscountPercentage} onChange={handleFormChange} className={inputClassName} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">30+ Day Discount (%)</label>
-                <input type="number" step="0.01" min="0" max="100" name="monthlyDiscountPercentage" value={form.monthlyDiscountPercentage} onChange={handleFormChange} className={inputClassName} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Holiday Multiplier</label>
-                <input type="number" step="0.01" min="1" name="holidayMultiplier" value={form.holidayMultiplier} onChange={handleFormChange} className={inputClassName} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Rain Multiplier</label>
-                <input type="number" step="0.01" min="1" name="rainyWeatherMultiplier" value={form.rainyWeatherMultiplier} onChange={handleFormChange} className={inputClassName} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Severe Weather Multiplier</label>
-                <input type="number" step="0.01" min="1" name="severeWeatherMultiplier" value={form.severeWeatherMultiplier} onChange={handleFormChange} className={inputClassName} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Included Distance (km)</label>
-                <input type="number" step="0.01" min="0" name="distanceIncludedKm" value={form.distanceIncludedKm} onChange={handleFormChange} className={inputClassName} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Extra Fee Per km</label>
-                <input type="number" step="0.01" min="0" name="distanceSurchargePerKm" value={form.distanceSurchargePerKm} onChange={handleFormChange} className={inputClassName} />
-              </div>
-            </div>
-            <p className="mt-4 text-xs text-gray-500">Weather comes from Open-Meteo, holidays come from Nager.Date, and distance is calculated from the map coordinates used during booking.</p>
-          </section>
 
           <section className={sectionClassName}>
             <div className="mb-4">
@@ -482,6 +467,36 @@ const MyVehicles = () => {
                 ))}
               </div>
             )}
+          </section>
+
+          <section className={sectionClassName}>
+            <div className="mb-4">
+              <h4 className="text-base font-bold text-gray-900">Verification Documents</h4>
+              <p className="text-xs text-gray-500">Required. Upload the vehicle book PDF and vehicle license details for admin approval.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Vehicle Book</label>
+                <input
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg"
+                  onChange={handleVehicleBookChange}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:font-medium"
+                />
+                {vehicleBookFile && <p className="mt-2 text-xs text-gray-500">{vehicleBookFile.name}</p>}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Vehicle License Details</label>
+                <input
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg"
+                  onChange={handleVehicleLicenseChange}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:font-medium"
+                />
+                {vehicleLicenseFile && <p className="mt-2 text-xs text-gray-500">{vehicleLicenseFile.name}</p>}
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-gray-500">Accepted formats: PDF, JPG, and PNG. Each file can be up to 10MB.</p>
           </section>
 
           {createError && (
