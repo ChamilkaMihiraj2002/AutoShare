@@ -20,6 +20,22 @@ async def test_create_rent_defaults_to_pending(fake_db, monkeypatch):
         ),
     )
 
+    await fake_db["pricing_settings"].insert_one(
+        {
+            "_id": "global_dynamic_pricing",
+            "enabled": True,
+            "weekend_multiplier": 1.2,
+            "weekly_discount_percentage": 0,
+            "monthly_discount_percentage": 0,
+            "holiday_multiplier": 1.15,
+            "rainy_weather_multiplier": 1.05,
+            "severe_weather_multiplier": 1.12,
+            "distance_included_km": 10,
+            "distance_surcharge_per_km": 15,
+            "custom_date_multipliers": [],
+        }
+    )
+
     await fake_db["vehicles"].insert_one(
         {
             "_id": "veh_1",
@@ -33,18 +49,6 @@ async def test_create_rent_defaults_to_pending(fake_db, monkeypatch):
             "brand": "Toyota",
             "year": 2022,
             "model": "Yaris",
-            "dynamic_pricing": {
-                "enabled": True,
-                "weekend_multiplier": 1.2,
-                "weekly_discount_percentage": 0,
-                "monthly_discount_percentage": 0,
-                "holiday_multiplier": 1.15,
-                "rainy_weather_multiplier": 1.05,
-                "severe_weather_multiplier": 1.12,
-                "distance_included_km": 10,
-                "distance_surcharge_per_km": 15,
-                "custom_date_multipliers": [],
-            },
         }
     )
     payload = RentCreate(
@@ -59,7 +63,7 @@ async def test_create_rent_defaults_to_pending(fake_db, monkeypatch):
         country_code="LK",
     )
 
-    created = await rents_router.create_rent_endpoint(payload, decoded_token={"uid": "renter_1"}, db=fake_db)
+    created = await rents_router.create_rent_endpoint(payload, decoded_token={"uid": "renter_1"}, db=fake_db, admin_db=fake_db)
 
     assert created["_id"] == "auto_1"
     assert created["booking_status"] == "pending"

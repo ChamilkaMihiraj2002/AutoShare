@@ -62,3 +62,29 @@ def test_vehicle_dynamic_pricing_fields_are_supported():
     assert obj.dynamic_pricing.enabled is True
     assert obj.dynamic_pricing.weekend_multiplier == 1.15
     assert obj.dynamic_pricing.custom_date_multipliers[0].label == "Peak season"
+
+
+def test_vehicle_verification_fields_are_supported_and_normalized():
+    payload = {
+        "_id": "veh_verified",
+        "owner_uid": "owner_verified",
+        "type": "car",
+        "fuel": "petrol",
+        "transmission": "automatic",
+        "price": 90.0,
+        "availability": True,
+        "location": "Colombo",
+        "brand": "Toyota",
+        "year": 2022,
+        "model": "Axio",
+        "verification_status": "pending",
+        "verification_documents": {
+            "vehicle_book_url": "https://example.com/uploads/vehicle-documents/book.pdf",
+            "vehicle_license_url": "uploads/vehicle-documents/license.pdf",
+        },
+    }
+
+    obj = Vehicle(**payload)
+    assert obj.verification_status == "pending"
+    assert obj.verification_documents.vehicle_book_url == "/uploads/vehicle-documents/book.pdf"
+    assert obj.verification_documents.vehicle_license_url == "/uploads/vehicle-documents/license.pdf"

@@ -1,5 +1,7 @@
 import pytest
 from fastapi import HTTPException
+from io import BytesIO
+from starlette.datastructures import UploadFile
 
 from app.routers import vehicles as vehicles_router
 from app.schemas import VehicleCreate, VehicleUpdate
@@ -79,3 +81,40 @@ async def test_patch_and_delete_vehicle_behavior(fake_db):
     assert getattr(resp, "status_code", None) == 204
     logs = list(fake_db["system_logs"]._store.values())
     assert any(log["action"] == "vehicles.delete" and log["entity_id"] == vid for log in logs)
+
+
+@pytest.mark.asyncio
+async def test_upload_vehicle_verification_documents(fake_db, tmp_path, monkeypatch):
+    owner = "owner_docs"
+    vid = "vehdocs"
+    await fake_db["vehicles"].insert_one(
+        {
+            "_id": vid,
+            "owner_uid": owner,
+            "type": "car",
+            "fuel": "petrol",
+            "transmission": "auto",
+            "price": 10.0,
+            "availability": True,
+            "location": "L",
+            "brand": "B",
+            "year": 2021,
+            "model": "M",
+        }
+    )
+    monkeypatch.setattr(vehicles_router, "VEHICLE_DOCUMENT_UPLOAD_DIR", tmp_path)
+
+    vehicle_book = UploadFile(BytesIO(b"book"), filename="book.pdf", headers={"content-type": "application/pdf"})
+    vehicle_license = UploadFile(BytesIO(b"license"), filename="license.pdf", headers={"content-type": "application/pdf"})
+
+    updated = await vehicles_router.upload_vehicle_verification_documents(
+        vehicle_id=vid,
+        vehicle_book=vehicle_book,
+        vehicle_license=vehicle_license,
+        decoded_token={"uid": owner},
+        db=fake_db,
+    )
+
+    assert updated["verification_status"] == "pending"
+    assert updated["verification_documents"]["vehicle_book_url"].startswith("/uploads/vehicle-documents/")
+    assert updated["verification_documents"]["vehicle_license_url"].startswith("/uploads/vehicle-documents/")

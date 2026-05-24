@@ -18,6 +18,22 @@ async def test_public_vehicle_pricing_quote_returns_dynamic_totals(fake_db, monk
         ),
     )
 
+    await fake_db["pricing_settings"].insert_one(
+        {
+            "_id": "global_dynamic_pricing",
+            "enabled": True,
+            "weekend_multiplier": 1.1,
+            "weekly_discount_percentage": 0,
+            "monthly_discount_percentage": 0,
+            "holiday_multiplier": 1.15,
+            "rainy_weather_multiplier": 1.05,
+            "severe_weather_multiplier": 1.12,
+            "distance_included_km": 10,
+            "distance_surcharge_per_km": 15,
+            "custom_date_multipliers": [],
+        }
+    )
+
     await fake_db["vehicles"].insert_one(
         {
             "_id": "veh_quote",
@@ -31,18 +47,6 @@ async def test_public_vehicle_pricing_quote_returns_dynamic_totals(fake_db, monk
             "brand": "Toyota",
             "year": 2022,
             "model": "Yaris",
-            "dynamic_pricing": {
-                "enabled": True,
-                "weekend_multiplier": 1.1,
-                "weekly_discount_percentage": 0,
-                "monthly_discount_percentage": 0,
-                "holiday_multiplier": 1.15,
-                "rainy_weather_multiplier": 1.05,
-                "severe_weather_multiplier": 1.12,
-                "distance_included_km": 10,
-                "distance_surcharge_per_km": 15,
-                "custom_date_multipliers": [],
-            },
         }
     )
 
@@ -56,6 +60,7 @@ async def test_public_vehicle_pricing_quote_returns_dynamic_totals(fake_db, monk
         destination_longitude=80.6337,
         country_code="LK",
         db=fake_db,
+        admin_db=fake_db,
     )
 
     assert quote["total_days"] == 2
