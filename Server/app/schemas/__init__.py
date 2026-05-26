@@ -38,6 +38,12 @@ from .earnings_schema import (
     OwnerEarningsTransaction,
     OwnerEarningsOverview,
 )
+from .messages_schema import (
+    ChatMessage,
+    Conversation,
+    ConversationCreate,
+    MessageCreate,
+)
 from .admin_schema import (
     AdminLoginRequest,
     AdminAuthResponse,
@@ -89,6 +95,10 @@ __all__ = [
     "EarningsSummary",
     "OwnerEarningsTransaction",
     "OwnerEarningsOverview",
+    "ChatMessage",
+    "Conversation",
+    "ConversationCreate",
+    "MessageCreate",
     "AdminLoginRequest",
     "AdminAuthResponse",
     "AdminOverviewStats",

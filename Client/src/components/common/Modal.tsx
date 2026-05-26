@@ -6,10 +6,12 @@ interface ModalProps {
     onClose: () => void;
     title: string;
     children: React.ReactNode;
+    contentClassName?: string;
     maxWidthClassName?: string;
     bodyClassName?: string;
 }
 
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, contentClassName }) => {
 const Modal: React.FC<ModalProps> = ({
     isOpen,
     onClose,
@@ -37,6 +39,7 @@ const Modal: React.FC<ModalProps> = ({
             onClick={onClose}
         >
             <div
+                className={`bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 ${contentClassName || ''}`}
                 className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-[28px] bg-white shadow-xl animate-in fade-in zoom-in duration-200 ${maxWidthClassName}`}
                 onClick={(e) => e.stopPropagation()}
             >
