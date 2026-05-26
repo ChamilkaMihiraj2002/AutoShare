@@ -81,6 +81,26 @@ class RentRepository(BaseRepository):
         updated = await self.get_by_id(rent_id)
         return _stringify_id(updated)
 
+    async def set_rent_status_by_renter(self, *, renter_uid: str, rent_id: Any, booking_status: str) -> dict | None:
+        result = await self.collection.update_one(
+            {"_id": rent_id, "renter_uid": renter_uid},
+            {"$set": {"booking_status": booking_status}},
+        )
+        if result.matched_count == 0:
+            oid = _to_object_id(rent_id)
+            if oid is None:
+                return None
+            result = await self.collection.update_one(
+                {"_id": oid, "renter_uid": renter_uid},
+                {"$set": {"booking_status": booking_status}},
+            )
+            if result.matched_count == 0:
+                return None
+            updated = await self.get_by_id(oid)
+            return _stringify_id(updated)
+        updated = await self.get_by_id(rent_id)
+        return _stringify_id(updated)
+
     async def get_rent_by_id(self, *, rent_id: Any) -> dict | None:
         doc = await self.get_by_id(rent_id)
         if doc is None:
@@ -169,6 +189,17 @@ async def set_rent_status(
 ) -> dict | None:
     repo = RentRepository(db)
     return await repo.set_rent_status(owner_uid=owner_uid, rent_id=rent_id, booking_status=booking_status)
+
+
+async def set_rent_status_by_renter(
+    db: AsyncIOMotorDatabase,
+    *,
+    renter_uid: str,
+    rent_id: str,
+    booking_status: str,
+) -> dict | None:
+    repo = RentRepository(db)
+    return await repo.set_rent_status_by_renter(renter_uid=renter_uid, rent_id=rent_id, booking_status=booking_status)
 
 
 async def delete_rent(db: AsyncIOMotorDatabase, *, renter_uid: str, rent_id: str) -> bool:

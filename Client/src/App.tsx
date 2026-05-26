@@ -29,6 +29,7 @@ import SearchVehicles from './pages/SearchVehicles';
 import VehicleDetails from './pages/VehicleDetails';
 import VehicleBooking from './pages/VehicleBooking';
 import NotificationsPage from './pages/Notifications';
+import Messages from './pages/Messages';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -71,6 +72,7 @@ const AppRoutes = () => {
             <Route path="vehicles/:id" element={<VehicleManage />} />
             <Route path="requests" element={<BookingRequests />} />
             <Route path="notifications" element={<NotificationsPage mode="owner" />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="earnings" element={<Earnings />} />
             <Route path="profile" element={<OwnerProfile />} />
             <Route path="settings" element={<OwnerSettings />} />
@@ -81,6 +83,7 @@ const AppRoutes = () => {
             <Route index element={<UserProfile />} />
             <Route path="bookings" element={<UserBookings />} />
             <Route path="saved" element={<SavedVehicles />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="notifications" element={<NotificationsPage mode="renter" />} />
             <Route path="settings" element={<UserSettings />} />
           </Route>
