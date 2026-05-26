@@ -1,10 +1,28 @@
-import type { AuthResponse, OwnerEarningsOverview, PublicUserProfile, RentApi, UserProfile, UserRole, VehicleApi } from '../types';
-import { clearAuthToken, getAuthToken } from './auth';
+import type {
+  AdminAuthResponse,
+  AdminBookingsResponse,
+  AdminDashboardOverview,
+  AdminDynamicPricingSettings,
+  AdminDynamicPricingSettingsResponse,
+  AdminVehicleVerificationItem,
+  AdminVehiclesResponse,
+  AdminUsersResponse,
+  AuthResponse,
+  OwnerEarningsOverview,
+  PricingQuote,
+  PublicUserProfile,
+  RentApi,
+  UserProfile,
+  UserRole,
+  VehicleApi,
+} from '../types';
+import { clearAdminAuthToken, clearAuthToken, getAdminAuthToken, getAuthToken } from './auth';
 import { notifyProfileUpdated } from './profile';
+import { getPrimaryVehicleImage } from './profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-type RequestMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type RawVehicleApi = VehicleApi & { _id?: string };
 type RawRentApi = RentApi & { _id?: string };
 
@@ -19,6 +37,26 @@ function normalizeVehicle(vehicle: RawVehicleApi): VehicleApi {
     seats: Number.isFinite(vehicle.seats) ? vehicle.seats : 5,
     image_urls,
     image_url,
+  };
+}
+
+export function mapVehicleApiToCar(vehicle: VehicleApi) {
+  return {
+    id: vehicle.vehicleid,
+    ownerUid: vehicle.owner_uid,
+    name: `${vehicle.brand} ${vehicle.model}`,
+    price: vehicle.price,
+    rating: 4.8,
+    reviews: 0,
+    location: vehicle.location,
+    seats: vehicle.seats ?? 5,
+    type: vehicle.type,
+    fuelType: vehicle.fuel,
+    transmission: vehicle.transmission,
+    year: vehicle.year,
+    image: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
+    images: vehicle.image_urls ?? [],
+    verified: vehicle.verification_status === 'verified',
   };
 }
 
@@ -79,6 +117,86 @@ async function apiRequest<T>(
   return response.json() as Promise<T>;
 }
 
+async function adminApiRequest<T>(
+  path: string,
+  method: RequestMethod = 'GET',
+  body?: unknown,
+): Promise<T> {
+  const token = getAdminAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Request failed (${response.status})`;
+    try {
+      const errorData = await response.json();
+      const detail = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+      if (detail) errorMessage = detail;
+    } catch {
+      // Keep generic error when body isn't JSON.
+    }
+
+    if (response.status === 401) {
+      clearAdminAuthToken();
+    }
+
+    throw new Error(errorMessage);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export async function loginAdmin(username: string, password: string): Promise<AdminAuthResponse> {
+  return adminApiRequest<AdminAuthResponse>('/admin/auth/login', 'POST', { username, password });
+}
+
+export async function getAdminDashboardOverview(): Promise<AdminDashboardOverview> {
+  return adminApiRequest<AdminDashboardOverview>('/admin/dashboard/overview');
+}
+
+export async function getAdminUsers(): Promise<AdminUsersResponse> {
+  return adminApiRequest<AdminUsersResponse>('/admin/users');
+}
+
+export async function getAdminBookings(): Promise<AdminBookingsResponse> {
+  return adminApiRequest<AdminBookingsResponse>('/admin/bookings');
+}
+
+export async function getAdminVehicles(): Promise<AdminVehiclesResponse> {
+  return adminApiRequest<AdminVehiclesResponse>('/admin/vehicles');
+}
+
+export async function getAdminPricingSettings(): Promise<AdminDynamicPricingSettingsResponse> {
+  return adminApiRequest<AdminDynamicPricingSettingsResponse>('/admin/pricing-settings');
+}
+
+export async function updateAdminPricingSettings(
+  payload: AdminDynamicPricingSettings,
+): Promise<AdminDynamicPricingSettingsResponse> {
+  return adminApiRequest<AdminDynamicPricingSettingsResponse>('/admin/pricing-settings', 'PUT', payload);
+}
+
+export async function updateAdminVehicleVerification(
+  vehicleId: string,
+  payload: {
+    verification_status: 'verified' | 'rejected';
+    verification_notes?: string;
+  },
+): Promise<AdminVehicleVerificationItem> {
+  return adminApiRequest<AdminVehicleVerificationItem>(`/admin/vehicles/${vehicleId}/verification`, 'PATCH', payload);
+}
+
 export async function loginWithEmail(email: string, password: string): Promise<AuthResponse> {
   return apiRequest<AuthResponse>('/auth/login', 'POST', { email, password });
 }
@@ -99,7 +217,7 @@ export async function getMyProfile(): Promise<UserProfile> {
 }
 
 export async function getUserPublicProfile(uid: string): Promise<PublicUserProfile> {
-  return apiRequest<PublicUserProfile>(`/users/${uid}`, 'GET', undefined, true);
+  return apiRequest<PublicUserProfile>(`/users/${uid}`);
 }
 
 export async function updateMyProfile(payload: {
@@ -241,6 +359,49 @@ export async function uploadVehicleImage(vehicleId: string, file: File): Promise
   return normalizeVehicle(vehicle);
 }
 
+export async function uploadVehicleVerificationDocuments(
+  vehicleId: string,
+  payload: {
+    vehicleBook: File;
+    vehicleLicense: File;
+  },
+): Promise<VehicleApi> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('You are not signed in.');
+  }
+
+  const formData = new FormData();
+  formData.append('vehicle_book', payload.vehicleBook);
+  formData.append('vehicle_license', payload.vehicleLicense);
+
+  const response = await fetch(`${API_BASE_URL}/vehicles/${vehicleId}/verification-documents`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Request failed (${response.status})`;
+    try {
+      const errorData = await response.json();
+      const detail = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+      if (detail) errorMessage = detail;
+    } catch {
+      // Keep generic error.
+    }
+    if (response.status === 401) {
+      clearAuthToken();
+    }
+    throw new Error(errorMessage);
+  }
+
+  const vehicle = (await response.json()) as RawVehicleApi;
+  return normalizeVehicle(vehicle);
+}
+
 export async function deleteVehicleImage(vehicleId: string, imageUrl: string): Promise<VehicleApi> {
   const token = getAuthToken();
   if (!token) {
@@ -279,6 +440,11 @@ export async function createRent(payload: {
   owner_uid: string;
   start_date: string;
   end_date: string;
+  pickup_latitude?: number | null;
+  pickup_longitude?: number | null;
+  destination_latitude?: number | null;
+  destination_longitude?: number | null;
+  country_code?: string;
   pickup_option?: string;
   delivery_address?: string | null;
   insurance_plan?: string;
@@ -287,6 +453,40 @@ export async function createRent(payload: {
 }): Promise<RentApi> {
   const rent = await apiRequest<RawRentApi>('/rents/', 'POST', payload, true);
   return normalizeRent(rent);
+}
+
+export async function getVehiclePricingQuote(
+  vehicleId: string,
+  payload: {
+    startDate: string;
+    endDate: string;
+    pickupLatitude?: number | null;
+    pickupLongitude?: number | null;
+    destinationLatitude?: number | null;
+    destinationLongitude?: number | null;
+    countryCode?: string;
+  },
+): Promise<PricingQuote> {
+  const query = new URLSearchParams({
+    start_date: payload.startDate,
+    end_date: payload.endDate,
+  });
+  if (payload.pickupLatitude !== undefined && payload.pickupLatitude !== null) {
+    query.set('pickup_latitude', String(payload.pickupLatitude));
+  }
+  if (payload.pickupLongitude !== undefined && payload.pickupLongitude !== null) {
+    query.set('pickup_longitude', String(payload.pickupLongitude));
+  }
+  if (payload.destinationLatitude !== undefined && payload.destinationLatitude !== null) {
+    query.set('destination_latitude', String(payload.destinationLatitude));
+  }
+  if (payload.destinationLongitude !== undefined && payload.destinationLongitude !== null) {
+    query.set('destination_longitude', String(payload.destinationLongitude));
+  }
+  if (payload.countryCode) {
+    query.set('country_code', payload.countryCode);
+  }
+  return apiRequest<PricingQuote>(`/vehicles/${vehicleId}/pricing?${query.toString()}`);
 }
 
 export async function acceptOwnerRent(rentId: string): Promise<RentApi> {

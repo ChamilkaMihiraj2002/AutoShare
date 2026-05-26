@@ -17,6 +17,7 @@ import app.core.firebase_setup
 
 # --- Import Routers ---
 from app.routers import general, auth, users
+import app.routers.admin as admin
 import app.routers.vehicles as vehicles
 import app.routers.rents as rents
 
@@ -102,6 +103,7 @@ async def persist_request_logs(request: Request, call_next):
 # --- Include Routers ---
 app.include_router(general.router)
 app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(users.router)
 app.include_router(vehicles.router)
 app.include_router(rents.router)

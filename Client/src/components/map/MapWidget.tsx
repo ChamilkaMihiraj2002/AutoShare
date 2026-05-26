@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -23,6 +23,8 @@ interface MapWidgetProps {
     destination: Coordinates | null;
 }
 
+const OSRM_ROUTE_URL = 'https://router.project-osrm.org/route/v1/driving';
+
 const RecenterMap: React.FC<{ userLocation: Coordinates | null; destination: Coordinates | null }> = ({ userLocation, destination }) => {
     const map = useMap();
 
@@ -44,6 +46,50 @@ const RecenterMap: React.FC<{ userLocation: Coordinates | null; destination: Coo
 };
 
 const MapWidget: React.FC<MapWidgetProps> = ({ userLocation, destination }) => {
+    const [routePath, setRoutePath] = useState<[number, number][]>([]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const loadRoute = async () => {
+            if (!userLocation || !destination) {
+                setRoutePath([]);
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `${OSRM_ROUTE_URL}/${userLocation.lng},${userLocation.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`,
+                    { signal: controller.signal },
+                );
+                if (!response.ok) {
+                    throw new Error(`Route request failed (${response.status})`);
+                }
+
+                const payload = await response.json();
+                const coordinates = payload.routes?.[0]?.geometry?.coordinates;
+                if (!Array.isArray(coordinates)) {
+                    setRoutePath([]);
+                    return;
+                }
+
+                setRoutePath(
+                    coordinates
+                        .filter((point: unknown): point is [number, number] => Array.isArray(point) && point.length >= 2)
+                        .map(([lng, lat]) => [lat, lng]),
+                );
+            } catch (error) {
+                if ((error as Error).name !== 'AbortError') {
+                    setRoutePath([]);
+                }
+            }
+        };
+
+        void loadRoute();
+
+        return () => controller.abort();
+    }, [userLocation, destination]);
+
     // Default center (Sri Lanka) if no locations
     const defaultCenter = { lat: 7.8731, lng: 80.7718 };
     const center = userLocation || destination || defaultCenter;
@@ -75,10 +121,14 @@ const MapWidget: React.FC<MapWidgetProps> = ({ userLocation, destination }) => {
 
                 {userLocation && destination && (
                     <Polyline
-                        positions={[
-                            [userLocation.lat, userLocation.lng],
-                            [destination.lat, destination.lng]
-                        ]}
+                        positions={
+                            routePath.length > 1
+                                ? routePath
+                                : [
+                                    [userLocation.lat, userLocation.lng],
+                                    [destination.lat, destination.lng],
+                                ]
+                        }
                         color="blue"
                     />
                 )}

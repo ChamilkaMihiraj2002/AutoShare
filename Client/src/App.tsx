@@ -29,17 +29,25 @@ import SearchVehicles from './pages/SearchVehicles';
 import VehicleDetails from './pages/VehicleDetails';
 import VehicleBooking from './pages/VehicleBooking';
 import NotificationsPage from './pages/Notifications';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminLayout from './layouts/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminBookings from './pages/admin/AdminBookings';
+import AdminVehicles from './pages/admin/AdminVehicles';
+import AdminPricing from './pages/admin/AdminPricing';
 
 const AppRoutes = () => {
   const location = useLocation();
   const normalizedPath = (location.pathname.replace(/\/+$/, '') || '/').toLowerCase();
-  const authRoutes = ['/signin', '/signup', '/signup/role', '/signup/details'];
+  const authRoutes = ['/signin', '/signup', '/signup/role', '/signup/details', '/admin/signin'];
   const hideChrome = authRoutes.some(path => normalizedPath.startsWith(path));
   const isOwnerDashboard = normalizedPath.startsWith('/dashboard');
+  const isAdminDashboard = normalizedPath.startsWith('/admin');
 
   return (
     <div className="flex flex-col min-h-screen">
-      {!isOwnerDashboard && !hideChrome && <Navbar />}
+      {!isOwnerDashboard && !isAdminDashboard && !hideChrome && <Navbar />}
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -51,6 +59,7 @@ const AppRoutes = () => {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/signin" element={<SignIn />} />
+          <Route path="/admin/signin" element={<AdminLogin />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/signup/role" element={<SignUpRole />} />
           <Route path="/signup/details" element={<SignUpDetails />} />
@@ -75,9 +84,17 @@ const AppRoutes = () => {
             <Route path="notifications" element={<NotificationsPage mode="renter" />} />
             <Route path="settings" element={<UserSettings />} />
           </Route>
+
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="bookings" element={<AdminBookings />} />
+            <Route path="vehicles" element={<AdminVehicles />} />
+            <Route path="pricing" element={<AdminPricing />} />
+          </Route>
         </Routes>
       </main>
-      {!hideChrome && <Footer />}
+      {!isAdminDashboard && !hideChrome && <Footer />}
     </div>
   );
 };

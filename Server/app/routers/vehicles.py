@@ -1,6 +1,7 @@
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadFile, File, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -9,7 +10,11 @@ from typing import List
 from app.core.db import get_database
 from app.core.auth_deps import get_current_user
 from app.schemas import VehicleCreate, Vehicle, VehicleUpdate
-from app.schemas.vehicles_schema import normalize_vehicle_image_url, normalize_vehicle_image_urls
+from app.schemas.vehicles_schema import (
+    normalize_upload_asset_url,
+    normalize_vehicle_image_url,
+    normalize_vehicle_image_urls,
+)
 from app.repositories.vehicle import (
     create_vehicle,
     get_vehicle_by_id,
@@ -26,8 +31,16 @@ router = APIRouter(
 
 VEHICLE_UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads" / "vehicles"
 VEHICLE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+VEHICLE_DOCUMENT_UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads" / "vehicle-documents"
+VEHICLE_DOCUMENT_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024
 ALLOWED_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+ALLOWED_DOCUMENT_TYPES = {
+    "application/pdf": ".pdf",
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+}
 
 
 def _normalize_image_url(image_url: str) -> str:
@@ -42,6 +55,42 @@ def _normalize_image_url(image_url: str) -> str:
     return image_url
 
 
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _normalize_document_url(document_url: str) -> str:
+    normalized = normalize_upload_asset_url(document_url, folder="vehicle-documents")
+    if normalized:
+        return normalized
+
+    parsed = urlparse(document_url)
+    if parsed.scheme and parsed.netloc:
+        return parsed.path
+    return document_url
+
+
+async def _save_vehicle_document(vehicle_id: str, upload: UploadFile, suffix: str) -> str:
+    content_type = (upload.content_type or "").lower()
+    extension = ALLOWED_DOCUMENT_TYPES.get(content_type)
+    if not extension:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported document type. Use PDF, JPG, or PNG.",
+        )
+
+    content = await upload.read()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded document is empty.")
+    if len(content) > MAX_DOCUMENT_SIZE_BYTES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document exceeds 10MB limit.")
+
+    filename = f"{vehicle_id}_{suffix}_{uuid4().hex}{extension}"
+    destination = VEHICLE_DOCUMENT_UPLOAD_DIR / filename
+    destination.write_bytes(content)
+    return f"/uploads/vehicle-documents/{filename}"
+
+
 @router.post("/", response_model=Vehicle, status_code=201)
 async def create_vehicle_endpoint(
     payload: VehicleCreate,
@@ -49,8 +98,16 @@ async def create_vehicle_endpoint(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     owner_uid = decoded_token.get("uid")
+    payload_data = payload.model_dump()
+    payload_data.pop("dynamic_pricing", None)
+    documents = payload_data.get("verification_documents") or {}
+    has_documents = bool(documents.get("vehicle_book_url")) and bool(documents.get("vehicle_license_url"))
+    payload_data["verification_status"] = "pending" if has_documents else "not_submitted"
+    payload_data["verification_submitted_at"] = _utc_now_iso() if has_documents else None
+    payload_data["verification_verified_at"] = None
+    payload_data["verification_verified_by"] = None
     try:
-        created = await create_vehicle(db=db, owner_uid=owner_uid, vehicle_doc=payload.model_dump())
+        created = await create_vehicle(db=db, owner_uid=owner_uid, vehicle_doc=payload_data)
         await create_audit_log(
             db,
             action="vehicles.create",
@@ -108,6 +165,16 @@ async def patch_vehicle(
 ):
     owner_uid = decoded_token.get("uid")
     update_fields = payload.model_dump(exclude_unset=True)
+    for restricted_field in (
+        "dynamic_pricing",
+        "verification_documents",
+        "verification_status",
+        "verification_notes",
+        "verification_submitted_at",
+        "verification_verified_at",
+        "verification_verified_by",
+    ):
+        update_fields.pop(restricted_field, None)
     updated = await update_vehicle(db=db, owner_uid=owner_uid, vehicle_id=vehicle_id, update_fields=update_fields)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
@@ -120,6 +187,59 @@ async def patch_vehicle(
         entity_type="vehicle",
         entity_id=vehicle_id,
         metadata={"updated_fields": sorted(update_fields.keys())},
+    )
+    return updated
+
+
+@router.post("/{vehicle_id}/verification-documents", response_model=Vehicle)
+async def upload_vehicle_verification_documents(
+    vehicle_id: str,
+    vehicle_book: UploadFile = File(...),
+    vehicle_license: UploadFile = File(...),
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    owner_uid = decoded_token.get("uid")
+    existing = await get_vehicle_by_id(db=db, vehicle_id=vehicle_id)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+    if existing.get("owner_uid") != owner_uid:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
+
+    vehicle_book_url = await _save_vehicle_document(vehicle_id, vehicle_book, "book")
+    vehicle_license_url = await _save_vehicle_document(vehicle_id, vehicle_license, "license")
+
+    updated = await update_vehicle(
+        db=db,
+        owner_uid=owner_uid,
+        vehicle_id=vehicle_id,
+        update_fields={
+            "verification_documents": {
+                "vehicle_book_url": vehicle_book_url,
+                "vehicle_license_url": vehicle_license_url,
+            },
+            "verification_status": "pending",
+            "verification_notes": "Awaiting admin review.",
+            "verification_submitted_at": _utc_now_iso(),
+            "verification_verified_at": None,
+            "verification_verified_by": None,
+        },
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by you")
+
+    await create_audit_log(
+        db,
+        action="vehicles.upload_verification_documents",
+        outcome="success",
+        message="Vehicle verification documents uploaded",
+        actor_uid=owner_uid,
+        entity_type="vehicle",
+        entity_id=vehicle_id,
+        metadata={
+            "vehicle_book_url": vehicle_book_url,
+            "vehicle_license_url": vehicle_license_url,
+        },
     )
     return updated
 

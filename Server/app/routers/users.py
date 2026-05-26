@@ -87,7 +87,6 @@ async def update_current_user(
 @router.get("/{uid}", response_model=PublicUserProfile)
 async def read_user_by_uid(
     uid: str,
-    _: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     profile = await get_user_profile_by_uid(db, uid=uid)
@@ -97,6 +96,7 @@ async def read_user_by_uid(
         "uid": profile.get("_id", uid),
         "full_name": profile.get("full_name"),
         "email": profile.get("email"),
+        "avatar_url": profile.get("avatar_url"),
     }
 
 

@@ -1,10 +1,28 @@
 import React from 'react';
-import { Calendar, Eye } from 'lucide-react';
+import { Calendar, CarFront, Eye, MapPinned, Shield, UserRound } from 'lucide-react';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import Modal from '../../components/common/Modal';
 import { acceptOwnerRent, cancelOwnerRent, completeOwnerRent, getMyVehicles, getOwnerRents, getUserPublicProfile } from '../../lib/api';
 import { formatLkr } from '../../lib/currency';
 import { getProfileDisplayName } from '../../lib/profile';
+import type { PricingQuote } from '../../types';
+
+const SERVICE_FEE = 9;
+const DELIVERY_FEE = 1500;
+const CHILD_SEAT_DAILY_FEE = 500;
+
+const getInsuranceDailyFee = (insurancePlan: string) => {
+  if (insurancePlan === 'premium') return 2500;
+  if (insurancePlan === 'standard') return 1200;
+  return 0;
+};
+
+const getStatusBadgeClassName = (status: BookingRequestRow['status']) => {
+  if (status === 'Pending') return 'bg-yellow-100 text-yellow-700';
+  if (status === 'Accepted') return 'bg-blue-100 text-blue-700';
+  if (status === 'Cancelled') return 'bg-red-100 text-red-700';
+  return 'bg-green-100 text-green-700';
+};
 
 type BookingRequestRow = {
   id: string;
@@ -19,6 +37,14 @@ type BookingRequestRow = {
   insurancePlan: string;
   childSeatCount: number;
   note: string | null;
+  totalDays: number;
+  pricingSnapshot: PricingQuote | null;
+  vehiclePricingTotal: number;
+  insuranceTotal: number;
+  deliveryFee: number;
+  childSeatTotal: number;
+  serviceFee: number;
+  grandTotal: number;
 };
 
 const BookingRequests = () => {
@@ -62,7 +88,14 @@ const BookingRequests = () => {
         const start = new Date(rent.start_date);
         const end = new Date(rent.end_date);
         const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-        const amount = vehicleInfo ? vehicleInfo.price * days : 0;
+        const pricingSnapshot = rent.pricing_snapshot ?? null;
+        const insurancePlan = rent.insurance_plan || 'basic';
+        const childSeatCount = rent.child_seat_count ?? 0;
+        const vehiclePricingTotal = pricingSnapshot?.total ?? (vehicleInfo ? vehicleInfo.price * days : 0);
+        const insuranceTotal = getInsuranceDailyFee(insurancePlan) * days;
+        const deliveryFee = (rent.pickup_option || 'self_pickup') === 'delivery' ? DELIVERY_FEE : 0;
+        const childSeatTotal = childSeatCount * CHILD_SEAT_DAILY_FEE * days;
+        const grandTotal = vehiclePricingTotal + insuranceTotal + deliveryFee + childSeatTotal + SERVICE_FEE;
         const status: BookingRequestRow['status'] =
           rent.booking_status === 'cancelled'
             ? 'Cancelled'
@@ -78,13 +111,21 @@ const BookingRequests = () => {
           renterName: renterNameByUid.get(rent.renter_uid) || rent.renter_uid,
           vehicleName: vehicleInfo?.name || `Vehicle #${rent.vehicle_id}`,
           dateRange: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
-          amountLabel: amount > 0 ? formatLkr(amount) : '-',
+          amountLabel: grandTotal > 0 ? formatLkr(grandTotal) : '-',
           status,
           pickupOption: rent.pickup_option || 'self_pickup',
           deliveryAddress: rent.delivery_address || null,
-          insurancePlan: rent.insurance_plan || 'basic',
-          childSeatCount: rent.child_seat_count ?? 0,
+          insurancePlan,
+          childSeatCount,
           note: rent.note || null,
+          totalDays: pricingSnapshot?.total_days ?? days,
+          pricingSnapshot,
+          vehiclePricingTotal,
+          insuranceTotal,
+          deliveryFee,
+          childSeatTotal,
+          serviceFee: SERVICE_FEE,
+          grandTotal,
         };
       });
 
@@ -297,59 +338,153 @@ const BookingRequests = () => {
         isOpen={selectedRequest !== null}
         onClose={() => setSelectedRequest(null)}
         title="Booking Request Details"
+        maxWidthClassName="max-w-5xl"
+        bodyClassName="bg-[#f8fafc]"
       >
         {selectedRequest && (
-          <div className="space-y-4 text-sm">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <p className="text-gray-500">Renter</p>
-                <p className="font-semibold text-gray-900">{selectedRequest.renterName}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Status</p>
-                <p className="font-semibold text-gray-900">{selectedRequest.status}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Vehicle</p>
-                <p className="font-semibold text-gray-900">{selectedRequest.vehicleName}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Total</p>
-                <p className="font-semibold text-gray-900">{selectedRequest.amountLabel}</p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-gray-500">Dates</p>
-                <p className="font-semibold text-gray-900">{selectedRequest.dateRange}</p>
+          <div className="space-y-5 text-sm">
+            <div className="rounded-[24px] bg-[#003049] px-4 py-4 text-white shadow-lg shadow-[#003049]/20 sm:px-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-bold sm:text-xl">{selectedRequest.vehicleName}</h3>
+                    <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getStatusBadgeClassName(selectedRequest.status)} bg-white/95`}>
+                      {selectedRequest.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white/80">Booking request from {selectedRequest.renterName}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-white/75 sm:text-sm">
+                    <span>#{selectedRequest.id}</span>
+                    <span>{selectedRequest.dateRange}</span>
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-white/12 px-4 py-3 backdrop-blur-sm lg:min-w-[220px]">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/65">Grand Total</p>
+                  <p className="mt-1 text-2xl font-bold sm:text-3xl">{formatLkr(selectedRequest.grandTotal)}</p>
+                </div>
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Pickup option</span>
-                <span className="font-medium text-gray-900">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <div className="mb-3 flex items-center gap-2 text-gray-500">
+                  <UserRound size={16} />
+                  <span className="text-xs font-semibold uppercase tracking-wide">Renter</span>
+                </div>
+                <p className="font-semibold text-gray-900">{selectedRequest.renterName}</p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <div className="mb-3 flex items-center gap-2 text-gray-500">
+                  <CarFront size={16} />
+                  <span className="text-xs font-semibold uppercase tracking-wide">Pickup</span>
+                </div>
+                <p className="font-semibold text-gray-900">
                   {selectedRequest.pickupOption === 'delivery' ? 'Delivery' : 'Self Pickup'}
-                </span>
+                </p>
+                {selectedRequest.deliveryAddress && (
+                  <p className="mt-2 text-xs leading-5 text-gray-500">{selectedRequest.deliveryAddress}</p>
+                )}
               </div>
-              {selectedRequest.deliveryAddress && (
-                <div>
-                  <p className="text-gray-500">Delivery address</p>
-                  <p className="font-medium text-gray-900">{selectedRequest.deliveryAddress}</p>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <div className="mb-3 flex items-center gap-2 text-gray-500">
+                  <Shield size={16} />
+                  <span className="text-xs font-semibold uppercase tracking-wide">Insurance</span>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-gray-500">Insurance</span>
-                <span className="font-medium text-gray-900">{selectedRequest.insurancePlan.toUpperCase()}</span>
+                <p className="font-semibold text-gray-900">{selectedRequest.insurancePlan.toUpperCase()}</p>
+                <p className="mt-2 text-xs text-gray-500">Child seats: {selectedRequest.childSeatCount}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Child seats</span>
-                <span className="font-medium text-gray-900">{selectedRequest.childSeatCount}</span>
-              </div>
-              {selectedRequest.note && (
-                <div>
-                  <p className="text-gray-500">Note</p>
-                  <p className="font-medium text-gray-900">{selectedRequest.note}</p>
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <div className="mb-3 flex items-center gap-2 text-gray-500">
+                  <Calendar size={16} />
+                  <span className="text-xs font-semibold uppercase tracking-wide">Trip</span>
                 </div>
-              )}
+                <p className="font-semibold text-gray-900">{selectedRequest.totalDays} day{selectedRequest.totalDays === 1 ? '' : 's'}</p>
+                <p className="mt-2 text-xs text-gray-500">{selectedRequest.dateRange}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+              <section className="rounded-[24px] border border-gray-200 bg-white p-4 sm:p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-base font-bold text-gray-900">Price Breakdown</h4>
+                    <p className="text-xs text-gray-500">Full calculation used for this booking request.</p>
+                  </div>
+                  <span className="rounded-full bg-[#fef3c7] px-3 py-1 text-xs font-semibold text-[#92400e]">
+                    {formatLkr(selectedRequest.grandTotal)}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {selectedRequest.pricingSnapshot ? (
+                    <>
+                      <div className="flex items-start justify-between gap-4 rounded-2xl bg-gray-50 px-4 py-3">
+                        <span className="text-gray-600">Vehicle subtotal ({selectedRequest.pricingSnapshot.total_days} days)</span>
+                        <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.pricingSnapshot.subtotal)}</span>
+                      </div>
+                      {selectedRequest.pricingSnapshot.duration_discount_amount > 0 && (
+                        <div className="flex items-start justify-between gap-4 rounded-2xl bg-green-50 px-4 py-3">
+                          <span className="text-green-700">Length-of-trip discount ({selectedRequest.pricingSnapshot.duration_discount_percentage}%)</span>
+                          <span className="font-semibold text-green-700">-{formatLkr(selectedRequest.pricingSnapshot.duration_discount_amount)}</span>
+                        </div>
+                      )}
+                      {selectedRequest.pricingSnapshot.distance_fee > 0 && (
+                        <div className="flex items-start justify-between gap-4 rounded-2xl bg-gray-50 px-4 py-3">
+                          <span className="text-gray-600">Distance fee ({selectedRequest.pricingSnapshot.distance_km.toFixed(1)} km)</span>
+                          <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.pricingSnapshot.distance_fee)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-start justify-between gap-4 rounded-2xl border border-[#003049]/10 bg-[#003049]/[0.03] px-4 py-3">
+                        <span className="font-medium text-[#003049]">Vehicle quote total</span>
+                        <span className="font-bold text-[#003049]">{formatLkr(selectedRequest.vehiclePricingTotal)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-start justify-between gap-4 rounded-2xl bg-gray-50 px-4 py-3">
+                      <span className="text-gray-600">Vehicle rental ({selectedRequest.totalDays} days)</span>
+                      <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.vehiclePricingTotal)}</span>
+                    </div>
+                  )}
+
+                  {selectedRequest.insuranceTotal > 0 && (
+                    <div className="flex items-start justify-between gap-4 rounded-2xl bg-gray-50 px-4 py-3">
+                      <span className="text-gray-600">Insurance ({selectedRequest.insurancePlan.toUpperCase()})</span>
+                      <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.insuranceTotal)}</span>
+                    </div>
+                  )}
+                  {selectedRequest.deliveryFee > 0 && (
+                    <div className="flex items-start justify-between gap-4 rounded-2xl bg-gray-50 px-4 py-3">
+                      <span className="text-gray-600">Delivery fee</span>
+                      <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.deliveryFee)}</span>
+                    </div>
+                  )}
+                  {selectedRequest.childSeatTotal > 0 && (
+                    <div className="flex items-start justify-between gap-4 rounded-2xl bg-gray-50 px-4 py-3">
+                      <span className="text-gray-600">Child seats ({selectedRequest.childSeatCount})</span>
+                      <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.childSeatTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between gap-4 rounded-2xl bg-gray-50 px-4 py-3">
+                    <span className="text-gray-600">Service fee</span>
+                    <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.serviceFee)}</span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="rounded-[24px] border border-gray-200 bg-white p-4 sm:p-5">
+                  <div className="mb-4 flex items-center gap-2">
+                    <MapPinned size={16} className="text-[#003049]" />
+                    <h4 className="text-base font-bold text-gray-900">Booking Notes</h4>
+                  </div>
+                  {selectedRequest.note ? (
+                    <p className="rounded-2xl bg-gray-50 px-4 py-3 leading-6 text-gray-700">{selectedRequest.note}</p>
+                  ) : (
+                    <p className="rounded-2xl bg-gray-50 px-4 py-3 text-gray-500">No extra note from the renter.</p>
+                  )}
+                </div>
+
+              </section>
             </div>
           </div>
         )}

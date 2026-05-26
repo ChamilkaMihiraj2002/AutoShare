@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar } from 'lucide-react';
+import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar, BadgeCheck } from 'lucide-react';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { getPublicVehicleById } from '../lib/api';
-import { getPrimaryVehicleImage } from '../lib/profile';
-import { formatLkr } from '../lib/currency';
+import { getPublicVehicleById, getUserPublicProfile, mapVehicleApiToCar } from '../lib/api';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
+import { getDisplayNameFromEmail, resolveAvatarUrl } from '../lib/profile';
 import type { Car } from '../types';
 
 type VehicleBookingRouteState = {
@@ -21,6 +20,14 @@ const VehicleDetails: React.FC = () => {
     const [vehicle, setVehicle] = React.useState<Car | null>(routeVehicle);
     const [isLoading, setIsLoading] = React.useState(!routeVehicle);
     const [error, setError] = React.useState('');
+    const [ownerName, setOwnerName] = React.useState('Vehicle Owner');
+    const [ownerAvatar, setOwnerAvatar] = React.useState(resolveAvatarUrl());
+
+    React.useEffect(() => {
+        if (routeVehicle) {
+            setVehicle(routeVehicle);
+        }
+    }, [routeVehicle]);
 
     React.useEffect(() => {
         const loadVehicle = async () => {
@@ -33,18 +40,7 @@ const VehicleDetails: React.FC = () => {
             try {
                 const result = await getPublicVehicleById(id);
                 if (result) {
-                    setVehicle({
-                        id: result.vehicleid,
-                        name: `${result.brand} ${result.model}`,
-                        price: result.price,
-                        rating: 4.8,
-                        reviews: 0,
-                        location: result.location,
-                        seats: result.seats ?? 5,
-                        type: result.type,
-                        fuelType: result.fuel,
-                        image: getPrimaryVehicleImage(result.image_urls, result.image_url),
-                    });
+                    setVehicle(mapVehicleApiToCar(result));
                     return;
                 }
 
@@ -62,16 +58,39 @@ const VehicleDetails: React.FC = () => {
         void loadVehicle();
     }, [id, routeVehicle]);
 
-    // Mock additional details not in the basic type
+    React.useEffect(() => {
+        const ownerUid = vehicle?.ownerUid;
+        if (!ownerUid) {
+            setOwnerName('Vehicle Owner');
+            setOwnerAvatar(resolveAvatarUrl());
+            return;
+        }
+
+        const loadOwner = async () => {
+            try {
+                const profile = await getUserPublicProfile(ownerUid);
+                const displayName = profile.full_name?.trim() || getDisplayNameFromEmail(profile.email);
+                setOwnerName(displayName);
+                setOwnerAvatar(resolveAvatarUrl(profile.avatar_url));
+            } catch {
+                setOwnerName('Vehicle Owner');
+                setOwnerAvatar(resolveAvatarUrl());
+            }
+        };
+
+        void loadOwner();
+    }, [vehicle?.ownerUid]);
+
     const specifications = {
-        year: 2023,
-        transmission: 'Automatic',
-        fuel: vehicle?.fuelType || 'Electric',
-        capacity: vehicle?.seats || 5
+        year: vehicle?.year,
+        transmission: vehicle?.transmission,
+        fuel: vehicle?.fuelType,
+        capacity: vehicle?.seats,
     };
 
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [dateError, setDateError] = useState('');
 
     if (isLoading) {
         return <LoadingScreen message="Loading vehicle..." />;
@@ -85,22 +104,18 @@ const VehicleDetails: React.FC = () => {
         return <div className="pt-24 text-center">Vehicle not found</div>;
     }
 
-    const calculateTotal = () => {
-        // Simplified calculation
-        if (!startDate || !endDate) return null;
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays > 0 ? diffDays * vehicle.price : 0;
-    };
-
-    const days = calculateTotal() ? Math.ceil(calculateTotal()! / vehicle.price) : 0;
-    const serviceFee = 9;
-    const total = (days * vehicle.price) + serviceFee;
-
-
     const handleBookNow = () => {
+        if (!startDate || !endDate) {
+            setDateError('Please select both start and end dates.');
+            return;
+        }
+
+        if (new Date(endDate) <= new Date(startDate)) {
+            setDateError('End date must be after start date.');
+            return;
+        }
+
+        setDateError('');
         navigate(`/vehicles/${vehicle.id}/book`, {
             state: {
                 startDate,
@@ -138,7 +153,15 @@ const VehicleDetails: React.FC = () => {
 
                         {/* Vehicle Info */}
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">{vehicle.name}</h1>
+                            <div className="mb-2 flex flex-wrap items-center gap-3">
+                                <h1 className="text-3xl font-bold text-gray-900">{vehicle.name}</h1>
+                                {vehicle.verified && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                                        <BadgeCheck size={14} />
+                                        Verified Vehicle
+                                    </span>
+                                )}
+                            </div>
                             <div className="flex items-center gap-4 text-gray-600 mb-6">
                                 <div className="flex items-center gap-1">
                                     <Star className="text-orange-400 fill-orange-400" size={18} />
@@ -156,11 +179,11 @@ const VehicleDetails: React.FC = () => {
                                 <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden">
-                                            <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Host" className="w-full h-full object-cover" />
+                                            <img src={ownerAvatar} alt={ownerName} className="w-full h-full object-cover" />
                                         </div>
                                         <div>
                                             <p className="text-sm text-gray-500">Hosted by</p>
-                                            <h3 className="font-bold text-gray-900">Sarah Johnson</h3>
+                                            <h3 className="font-bold text-gray-900">{ownerName}</h3>
                                         </div>
                                     </div>
                                     <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
@@ -175,29 +198,35 @@ const VehicleDetails: React.FC = () => {
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                                     <Calendar className="mx-auto text-gray-400 mb-2" size={24} />
                                     <div className="text-sm text-gray-500">Year</div>
-                                    <div className="font-bold text-gray-900">{specifications.year}</div>
+                                    <div className="font-bold text-gray-900">{specifications.year ?? 'Not specified'}</div>
                                 </div>
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                                     <Gauge className="mx-auto text-gray-400 mb-2" size={24} />
                                     <div className="text-sm text-gray-500">Transmission</div>
-                                    <div className="font-bold text-gray-900">{specifications.transmission}</div>
+                                    <div className="font-bold text-gray-900">{specifications.transmission ?? 'Not specified'}</div>
                                 </div>
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                                     <Fuel className="mx-auto text-gray-400 mb-2" size={24} />
                                     <div className="text-sm text-gray-500">Fuel</div>
-                                    <div className="font-bold text-gray-900">{specifications.fuel}</div>
+                                    <div className="font-bold text-gray-900">{specifications.fuel ?? 'Not specified'}</div>
                                 </div>
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                                     <Users className="mx-auto text-gray-400 mb-2" size={24} />
                                     <div className="text-sm text-gray-500">Capacity</div>
-                                    <div className="font-bold text-gray-900 text-center">{specifications.capacity} seats</div>
+                                    <div className="font-bold text-gray-900 text-center">
+                                        {specifications.capacity ? `${specifications.capacity} seats` : 'Not specified'}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Description */}
                             <h3 className="text-xl font-bold text-gray-900 mb-4">About this vehicle</h3>
                             <p className="text-gray-600 leading-relaxed mb-8">
-                                Experience the future of driving with this pristine {vehicle.name}. Features autopilot, premium sound system, and incredible range. Perfect for city driving or weekend getaways. maintained in excellent condition.
+                                {vehicle.name} is available in {vehicle.location}
+                                {vehicle.type ? ` as a ${vehicle.type.toLowerCase()}` : ''}.
+                                {vehicle.transmission ? ` It comes with ${vehicle.transmission.toLowerCase()} transmission,` : ''}
+                                {vehicle.fuelType ? ` runs on ${vehicle.fuelType.toLowerCase()} fuel,` : ''}
+                                {vehicle.seats ? ` and seats up to ${vehicle.seats} people.` : ''}
                             </p>
 
                             {/* Reviews */}
@@ -221,8 +250,9 @@ const VehicleDetails: React.FC = () => {
                     {/* Right Column - Booking Widget */}
                     <div className="lg:col-span-1">
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-24">
-                            <div className="flex justify-between items-baseline mb-6">
-                                <div className="text-2xl font-bold text-gray-900">{formatLkr(vehicle.price)} <span className="text-base font-normal text-gray-500">per day</span></div>
+                            <div className="mb-6">
+                                <h2 className="text-2xl font-bold text-gray-900">Plan Your Trip</h2>
+                                <p className="text-sm text-gray-500 mt-1">Choose your dates and continue to see the live dynamic price.</p>
                             </div>
 
                             <div className="space-y-4 mb-6">
@@ -232,7 +262,11 @@ const VehicleDetails: React.FC = () => {
                                         type="date"
                                         className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                         value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
+                                        min={new Date().toISOString().slice(0, 10)}
+                                        onChange={(e) => {
+                                            setStartDate(e.target.value);
+                                            setDateError('');
+                                        }}
                                     />
                                 </div>
                                 <div>
@@ -241,28 +275,14 @@ const VehicleDetails: React.FC = () => {
                                         type="date"
                                         className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                         value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
+                                        min={startDate || new Date().toISOString().slice(0, 10)}
+                                        onChange={(e) => {
+                                            setEndDate(e.target.value);
+                                            setDateError('');
+                                        }}
                                     />
                                 </div>
                             </div>
-
-                            {days > 0 && (
-                                <div className="space-y-3 mb-6 pt-4 border-t border-gray-100">
-                                    <div className="flex justify-between text-gray-600">
-                                        <span>{formatLkr(vehicle.price)} × {days} days</span>
-                                        <span>{formatLkr(days * vehicle.price)}</span>
-                                    </div>
-                                    <div className="flex justify-between text-gray-600">
-                                        <span>Service fee</span>
-                                        <span>{formatLkr(serviceFee)}</span>
-                                    </div>
-                                    <div className="flex justify-between font-bold text-gray-900 pt-3 border-t border-gray-100">
-                                        <span>Total</span>
-                                        <span>{formatLkr(total)}</span>
-                                    </div>
-                                </div>
-                            )}
-
                             <button
                                 onClick={handleBookNow}
                                 className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg shadow-orange-500/30"
@@ -270,7 +290,9 @@ const VehicleDetails: React.FC = () => {
                                 Book Now
                             </button>
 
-                            <p className="text-center text-sm text-gray-400 mt-4">You won't be charged yet</p>
+                            {dateError && <p className="mt-3 text-sm text-red-600">{dateError}</p>}
+
+                            <p className="text-center text-sm text-gray-400 mt-4">You will review the live dynamic price on the next step.</p>
                         </div>
                     </div>
                 </div>
