@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock } from 'lucide-react';
-import { getMyRents, getPublicVehicles, getUserPublicProfile } from '../../lib/api';
+import { cancelMyRent, getMyRents, getPublicVehicles, getUserPublicProfile, updateMyRent } from '../../lib/api';
 import LoadingScreen from '../../components/common/LoadingScreen';
+import Modal from '../../components/common/Modal';
 import { getPrimaryVehicleImage, getProfileDisplayName } from '../../lib/profile';
 import type { RentApi } from '../../types';
 
@@ -18,50 +19,56 @@ const UserBookings = () => {
     const [displayByRentId, setDisplayByRentId] = React.useState<Map<string, BookingDisplay>>(new Map());
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState('');
+    const [submittingRentId, setSubmittingRentId] = React.useState<string | null>(null);
+    const [editingBooking, setEditingBooking] = React.useState<RentApi | null>(null);
+    const [editStartDate, setEditStartDate] = React.useState('');
+    const [editEndDate, setEditEndDate] = React.useState('');
+    const [editError, setEditError] = React.useState('');
+
+    const loadBookings = React.useCallback(async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const result = await getMyRents();
+            setBookings(result);
+
+            const [vehicles, ownerEntries] = await Promise.all([
+                getPublicVehicles(),
+                Promise.all(
+                    Array.from(new Set(result.map((booking) => booking.owner_uid))).map(async (uid) => {
+                        try {
+                            const profile = await getUserPublicProfile(uid);
+                            return [uid, getProfileDisplayName(profile.full_name, profile.email)] as const;
+                        } catch {
+                            return [uid, 'Owner'] as const;
+                        }
+                    }),
+                ),
+            ]);
+
+            const vehicleById = new Map(vehicles.map((vehicle) => [vehicle.vehicleid, vehicle]));
+            const ownerNameByUid = new Map(ownerEntries);
+
+            const nextDisplayByRentId = new Map<string, BookingDisplay>();
+            result.forEach((booking) => {
+                const vehicle = vehicleById.get(booking.vehicle_id);
+                nextDisplayByRentId.set(booking.rentid, {
+                    ownerName: ownerNameByUid.get(booking.owner_uid) || 'Owner',
+                    vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Vehicle',
+                    vehicleImage: getPrimaryVehicleImage(vehicle?.image_urls, vehicle?.image_url),
+                });
+            });
+            setDisplayByRentId(nextDisplayByRentId);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load bookings');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     React.useEffect(() => {
-        const loadBookings = async () => {
-            setLoading(true);
-            setError('');
-            try {
-                const result = await getMyRents();
-                setBookings(result);
-
-                const [vehicles, ownerEntries] = await Promise.all([
-                    getPublicVehicles(),
-                    Promise.all(
-                        Array.from(new Set(result.map((booking) => booking.owner_uid))).map(async (uid) => {
-                            try {
-                                const profile = await getUserPublicProfile(uid);
-                                return [uid, getProfileDisplayName(profile.full_name, profile.email)] as const;
-                            } catch {
-                                return [uid, 'Owner'] as const;
-                            }
-                        }),
-                    ),
-                ]);
-
-                const vehicleById = new Map(vehicles.map((vehicle) => [vehicle.vehicleid, vehicle]));
-                const ownerNameByUid = new Map(ownerEntries);
-
-                const nextDisplayByRentId = new Map<string, BookingDisplay>();
-                result.forEach((booking) => {
-                    const vehicle = vehicleById.get(booking.vehicle_id);
-                    nextDisplayByRentId.set(booking.rentid, {
-                        ownerName: ownerNameByUid.get(booking.owner_uid) || 'Owner',
-                        vehicleName: vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Vehicle',
-                        vehicleImage: getPrimaryVehicleImage(vehicle?.image_urls, vehicle?.image_url),
-                    });
-                });
-                setDisplayByRentId(nextDisplayByRentId);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'Failed to load bookings');
-            } finally {
-                setLoading(false);
-            }
-        };
         void loadBookings();
-    }, []);
+    }, [loadBookings]);
 
     const getStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
@@ -81,6 +88,53 @@ const UserBookings = () => {
         return 'Upcoming';
     };
 
+    const handleCancelBooking = async (booking: RentApi) => {
+        setSubmittingRentId(booking.rentid);
+        setError('');
+        try {
+            const updated = await cancelMyRent(booking.rentid);
+            setBookings((current) => current.map((entry) => (entry.rentid === booking.rentid ? updated : entry)));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to cancel booking');
+        } finally {
+            setSubmittingRentId(null);
+        }
+    };
+
+    const openModifyModal = (booking: RentApi) => {
+        setEditingBooking(booking);
+        setEditStartDate(booking.start_date.slice(0, 10));
+        setEditEndDate(booking.end_date.slice(0, 10));
+        setEditError('');
+    };
+
+    const handleModifyDates = async () => {
+        if (!editingBooking) return;
+        if (!editStartDate || !editEndDate) {
+            setEditError('Please select both dates.');
+            return;
+        }
+        if (new Date(editEndDate) <= new Date(editStartDate)) {
+            setEditError('End date must be after start date.');
+            return;
+        }
+
+        setSubmittingRentId(editingBooking.rentid);
+        setEditError('');
+        try {
+            const updated = await updateMyRent(editingBooking.rentid, {
+                start_date: new Date(editStartDate).toISOString(),
+                end_date: new Date(editEndDate).toISOString(),
+            });
+            setBookings((current) => current.map((entry) => (entry.rentid === editingBooking.rentid ? updated : entry)));
+            setEditingBooking(null);
+        } catch (err) {
+            setEditError(err instanceof Error ? err.message : 'Failed to update booking dates');
+        } finally {
+            setSubmittingRentId(null);
+        }
+    };
+
     if (loading) {
         return <LoadingScreen message="Loading your bookings..." />;
     }
@@ -90,17 +144,18 @@ const UserBookings = () => {
     }
 
     return (
-        <div className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900">My Bookings</h2>
+        <>
+            <div className="space-y-6">
+                <h2 className="text-xl font-bold text-gray-900">My Bookings</h2>
 
-            <div className="space-y-4">
-                {bookings.map((booking) => {
-                    const status = formatBookingStatus(booking);
-                    const display = displayByRentId.get(booking.rentid);
-                    const vehicleName = display?.vehicleName || 'Vehicle';
-                    const ownerName = display?.ownerName || 'Owner';
-                    const vehicleImage = display?.vehicleImage || getPrimaryVehicleImage();
-                    return (
+                <div className="space-y-4">
+                    {bookings.map((booking) => {
+                        const status = formatBookingStatus(booking);
+                        const display = displayByRentId.get(booking.rentid);
+                        const vehicleName = display?.vehicleName || 'Vehicle';
+                        const ownerName = display?.ownerName || 'Owner';
+                        const vehicleImage = display?.vehicleImage || getPrimaryVehicleImage();
+                        return (
                     <div key={booking.rentid} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row gap-6 transition hover:shadow-md">
                         {/* Vehicle Image */}
                         <div className="w-full md:w-64 h-40 rounded-xl overflow-hidden flex-shrink-0">
@@ -147,10 +202,18 @@ const UserBookings = () => {
                             <div className="flex gap-3 mt-6 justify-end">
                                 {status === 'Upcoming' && (
                                     <>
-                                        <button className="px-4 py-2 border border-red-200 text-red-600 font-bold rounded-lg hover:bg-red-50 transition text-sm">
-                                            Cancel Booking
+                                        <button
+                                            onClick={() => void handleCancelBooking(booking)}
+                                            disabled={submittingRentId === booking.rentid}
+                                            className="px-4 py-2 border border-red-200 text-red-600 font-bold rounded-lg hover:bg-red-50 transition text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {submittingRentId === booking.rentid ? 'Cancelling...' : 'Cancel Booking'}
                                         </button>
-                                        <button className="px-4 py-2 bg-[#003049] text-white font-bold rounded-lg hover:bg-[#002538] transition text-sm shadow-lg shadow-[#003049]/20">
+                                        <button
+                                            onClick={() => openModifyModal(booking)}
+                                            disabled={submittingRentId === booking.rentid}
+                                            className="px-4 py-2 bg-[#003049] text-white font-bold rounded-lg hover:bg-[#002538] transition text-sm shadow-lg shadow-[#003049]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
                                             Modify Dates
                                         </button>
                                         <button
@@ -170,8 +233,54 @@ const UserBookings = () => {
                         </div>
                     </div>
                 )})}
+                </div>
             </div>
-        </div>
+            <Modal
+                isOpen={editingBooking !== null}
+                onClose={() => setEditingBooking(null)}
+                title="Modify Booking Dates"
+                maxWidthClassName="max-w-xl"
+            >
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">Start Date</label>
+                            <input
+                                type="date"
+                                value={editStartDate}
+                                onChange={(event) => setEditStartDate(event.target.value)}
+                                className="w-full rounded-lg border border-gray-300 px-4 py-2"
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">End Date</label>
+                            <input
+                                type="date"
+                                value={editEndDate}
+                                onChange={(event) => setEditEndDate(event.target.value)}
+                                className="w-full rounded-lg border border-gray-300 px-4 py-2"
+                            />
+                        </div>
+                    </div>
+                    {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setEditingBooking(null)}
+                            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                        >
+                            Close
+                        </button>
+                        <button
+                            onClick={() => void handleModifyDates()}
+                            disabled={editingBooking ? submittingRentId === editingBooking.rentid : false}
+                            className="rounded-lg bg-[#003049] px-4 py-2 text-sm font-bold text-white hover:bg-[#002538] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {editingBooking && submittingRentId === editingBooking.rentid ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+        </>
     );
 };
 

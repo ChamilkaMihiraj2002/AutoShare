@@ -8,6 +8,7 @@ import type {
   AdminVehiclesResponse,
   AdminUsersResponse,
   AuthResponse,
+  ConversationApi,
   OwnerEarningsOverview,
   PricingQuote,
   PublicUserProfile,
@@ -461,6 +462,32 @@ export async function createRent(payload: {
   note?: string;
 }): Promise<RentApi> {
   const rent = await apiRequest<RawRentApi>('/rents/', 'POST', payload, true);
+  return normalizeRent(rent);
+}
+
+export async function updateMyRent(
+  rentId: string,
+  payload: {
+    start_date?: string;
+    end_date?: string;
+    pickup_latitude?: number | null;
+    pickup_longitude?: number | null;
+    destination_latitude?: number | null;
+    destination_longitude?: number | null;
+    country_code?: string;
+    pickup_option?: string;
+    delivery_address?: string | null;
+    insurance_plan?: string;
+    child_seat_count?: number;
+    note?: string;
+  },
+): Promise<RentApi> {
+  const rent = await apiRequest<RawRentApi>(`/rents/${rentId}`, 'PATCH', payload, true);
+  return normalizeRent(rent);
+}
+
+export async function cancelMyRent(rentId: string): Promise<RentApi> {
+  const rent = await apiRequest<RawRentApi>(`/rents/${rentId}/cancel-by-renter`, 'POST', undefined, true);
   return normalizeRent(rent);
 }
 

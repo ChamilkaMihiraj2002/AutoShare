@@ -343,7 +343,6 @@ const BookingRequests = () => {
         title="Booking Request Details"
         maxWidthClassName="max-w-5xl"
         bodyClassName="bg-[#f8fafc]"
-        contentClassName="max-w-2xl"
       >
         {selectedRequest && (
           <div className="space-y-5 text-sm">
@@ -472,35 +471,43 @@ const BookingRequests = () => {
                     <span className="text-gray-600">Service fee</span>
                     <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.serviceFee)}</span>
                   </div>
-            <div className="space-y-2 border-t border-gray-100 pt-4">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-gray-500">Pickup option</span>
-                <span className="font-medium text-gray-900">
-                  {selectedRequest.pickupOption === 'delivery' ? 'Delivery' : 'Self Pickup'}
-                </span>
-              </div>
-              {selectedRequest.deliveryAddress && (
-                <div>
-                  <p className="text-gray-500">Delivery address</p>
-                  <p className="font-medium text-gray-900">{selectedRequest.deliveryAddress}</p>
-                </div>
-              )}
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-gray-500">Insurance</span>
-                <span className="font-medium text-gray-900">{selectedRequest.insurancePlan.toUpperCase()}</span>
-              </div>
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-gray-500">Child seats</span>
-                <span className="font-medium text-gray-900">{selectedRequest.childSeatCount}</span>
-              </div>
-              {selectedRequest.note && (
-                <div>
-                  <p className="text-gray-500">Note</p>
-                  <p className="font-medium text-gray-900">{selectedRequest.note}</p>
+                  <div className="flex items-start justify-between gap-4 rounded-2xl border border-[#003049]/10 bg-[#003049] px-4 py-3 text-white">
+                    <span className="font-medium">Grand total</span>
+                    <span className="font-bold">{formatLkr(selectedRequest.grandTotal)}</span>
+                  </div>
                 </div>
               </section>
 
               <section className="space-y-4">
+                <div className="rounded-[24px] border border-gray-200 bg-white p-4 sm:p-5">
+                  <div className="mb-4 flex items-center gap-2">
+                    <MapPinned size={16} className="text-[#003049]" />
+                    <h4 className="text-base font-bold text-gray-900">Trip Details</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-gray-500">Pickup option</span>
+                      <span className="font-medium text-gray-900">
+                        {selectedRequest.pickupOption === 'delivery' ? 'Delivery' : 'Self Pickup'}
+                      </span>
+                    </div>
+                    {selectedRequest.deliveryAddress && (
+                      <div>
+                        <p className="text-gray-500">Delivery address</p>
+                        <p className="font-medium text-gray-900">{selectedRequest.deliveryAddress}</p>
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-gray-500">Insurance</span>
+                      <span className="font-medium text-gray-900">{selectedRequest.insurancePlan.toUpperCase()}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-gray-500">Child seats</span>
+                      <span className="font-medium text-gray-900">{selectedRequest.childSeatCount}</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="rounded-[24px] border border-gray-200 bg-white p-4 sm:p-5">
                   <div className="mb-4 flex items-center gap-2">
                     <MapPinned size={16} className="text-[#003049]" />
@@ -512,7 +519,6 @@ const BookingRequests = () => {
                     <p className="rounded-2xl bg-gray-50 px-4 py-3 text-gray-500">No extra note from the renter.</p>
                   )}
                 </div>
-
               </section>
             </div>
           </div>
