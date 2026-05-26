@@ -1,5 +1,3 @@
-import type { AuthResponse, ConversationApi, OwnerEarningsOverview, PublicUserProfile, RentApi, UserProfile, UserRole, VehicleApi } from '../types';
-import { clearAuthToken, getAuthToken } from './auth';
 import type {
   AdminAuthResponse,
   AdminBookingsResponse,
@@ -28,7 +26,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000
 type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type RawVehicleApi = VehicleApi & { _id?: string };
 type RawRentApi = RentApi & { _id?: string };
-type RawConversationApi = ConversationApi & { _id?: string };
 type RawConversationApi = ConversationApi & { _id?: string };
 
 function normalizeVehicle(vehicle: RawVehicleApi): VehicleApi {
@@ -70,14 +67,6 @@ function normalizeRent(rent: RawRentApi): RentApi {
     ...rent,
     rentid: rent.rentid || rent._id || '',
     booking_status: rent.booking_status || 'pending',
-  };
-}
-
-function normalizeConversation(conversation: RawConversationApi): ConversationApi {
-  return {
-    ...conversation,
-    conversationid: conversation.conversationid || conversation._id || '',
-    messages: Array.isArray(conversation.messages) ? conversation.messages : [],
   };
 }
 
@@ -549,32 +538,6 @@ export async function cancelOwnerRent(rentId: string): Promise<RentApi> {
 export async function completeOwnerRent(rentId: string): Promise<RentApi> {
   const rent = await apiRequest<RawRentApi>(`/rents/${rentId}/complete`, 'POST', undefined, true);
   return normalizeRent(rent);
-}
-
-export async function getMyConversations(): Promise<ConversationApi[]> {
-  const conversations = await apiRequest<RawConversationApi[]>('/messages/conversations', 'GET', undefined, true);
-  return conversations.map(normalizeConversation);
-}
-
-export async function getConversationById(conversationId: string): Promise<ConversationApi> {
-  const conversation = await apiRequest<RawConversationApi>(`/messages/conversations/${conversationId}`, 'GET', undefined, true);
-  return normalizeConversation(conversation);
-}
-
-export async function createConversation(payload: {
-  vehicle_id: string;
-  owner_uid: string;
-  initial_message?: string;
-}): Promise<ConversationApi> {
-  const conversation = await apiRequest<RawConversationApi>('/messages/conversations', 'POST', payload, true);
-  return normalizeConversation(conversation);
-}
-
-export async function sendConversationMessage(conversationId: string, payload: {
-  text: string;
-}): Promise<ConversationApi> {
-  const conversation = await apiRequest<RawConversationApi>(`/messages/conversations/${conversationId}/messages`, 'POST', payload, true);
-  return normalizeConversation(conversation);
 }
 
 export async function getMyConversations(): Promise<ConversationApi[]> {

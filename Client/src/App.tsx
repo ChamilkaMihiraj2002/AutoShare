@@ -37,7 +37,6 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminBookings from './pages/admin/AdminBookings';
 import AdminVehicles from './pages/admin/AdminVehicles';
 import AdminPricing from './pages/admin/AdminPricing';
-import Messages from './pages/Messages';
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -74,7 +73,6 @@ const AppRoutes = () => {
             <Route path="requests" element={<BookingRequests />} />
             <Route path="notifications" element={<NotificationsPage mode="owner" />} />
             <Route path="messages" element={<Messages />} />
-            <Route path="messages" element={<Messages />} />
             <Route path="earnings" element={<Earnings />} />
             <Route path="profile" element={<OwnerProfile />} />
             <Route path="settings" element={<OwnerSettings />} />
@@ -85,7 +83,6 @@ const AppRoutes = () => {
             <Route index element={<UserProfile />} />
             <Route path="bookings" element={<UserBookings />} />
             <Route path="saved" element={<SavedVehicles />} />
-            <Route path="messages" element={<Messages />} />
             <Route path="messages" element={<Messages />} />
             <Route path="notifications" element={<NotificationsPage mode="renter" />} />
             <Route path="settings" element={<UserSettings />} />

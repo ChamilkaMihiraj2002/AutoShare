@@ -11,12 +11,12 @@ interface ModalProps {
     bodyClassName?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, contentClassName }) => {
 const Modal: React.FC<ModalProps> = ({
     isOpen,
     onClose,
     title,
     children,
+    contentClassName = '',
     maxWidthClassName = 'max-w-lg',
     bodyClassName = '',
 }) => {
@@ -26,6 +26,7 @@ const Modal: React.FC<ModalProps> = ({
         } else {
             document.body.style.overflow = 'unset';
         }
+
         return () => {
             document.body.style.overflow = 'unset';
         };
@@ -39,8 +40,7 @@ const Modal: React.FC<ModalProps> = ({
             onClick={onClose}
         >
             <div
-                className={`bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 ${contentClassName || ''}`}
-                className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-[28px] bg-white shadow-xl animate-in fade-in zoom-in duration-200 ${maxWidthClassName}`}
+                className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-[28px] bg-white shadow-xl animate-in fade-in zoom-in duration-200 ${maxWidthClassName} ${contentClassName}`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-4 py-4 sm:px-6 sm:py-5">
