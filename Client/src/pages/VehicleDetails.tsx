@@ -2,12 +2,9 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar, BadgeCheck } from 'lucide-react';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { getPublicVehicleById, getUserPublicProfile, mapVehicleApiToCar } from '../lib/api';
+import { getMyProfile, getPublicVehicleById, getUserPublicProfile, mapVehicleApiToCar } from '../lib/api';
 import MessagePopup from '../components/messages/MessagePopup';
-import { getMyProfile, getPublicVehicleById, getUserPublicProfile } from '../lib/api';
 import { getAuthToken } from '../lib/auth';
-import { getPrimaryVehicleImage } from '../lib/profile';
-import { formatLkr } from '../lib/currency';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
 import { getDisplayNameFromEmail, resolveAvatarUrl } from '../lib/profile';
 import type { Car } from '../types';
@@ -25,18 +22,17 @@ const VehicleDetails: React.FC = () => {
     const [vehicle, setVehicle] = React.useState<Car | null>(routeVehicle);
     const [isLoading, setIsLoading] = React.useState(!routeVehicle);
     const [error, setError] = React.useState('');
+    const [ownerUid, setOwnerUid] = React.useState('');
     const [ownerName, setOwnerName] = React.useState('Vehicle Owner');
     const [ownerAvatar, setOwnerAvatar] = React.useState(resolveAvatarUrl());
+    const [currentUserUid, setCurrentUserUid] = React.useState('');
+    const [isMessagePopupOpen, setIsMessagePopupOpen] = React.useState(false);
 
     React.useEffect(() => {
         if (routeVehicle) {
             setVehicle(routeVehicle);
         }
     }, [routeVehicle]);
-    const [ownerUid, setOwnerUid] = React.useState('');
-    const [ownerName, setOwnerName] = React.useState('Vehicle Owner');
-    const [currentUserUid, setCurrentUserUid] = React.useState('');
-    const [isMessagePopupOpen, setIsMessagePopupOpen] = React.useState(false);
 
     React.useEffect(() => {
         const loadVehicle = async () => {
@@ -51,26 +47,6 @@ const VehicleDetails: React.FC = () => {
                 if (result) {
                     setVehicle(mapVehicleApiToCar(result));
                     setOwnerUid(result.owner_uid);
-                    if (getAuthToken()) {
-                        try {
-                            const profile = await getUserPublicProfile(result.owner_uid);
-                            setOwnerName(profile.full_name?.trim() || profile.email || 'Vehicle Owner');
-                        } catch {
-                            setOwnerName('Vehicle Owner');
-                        }
-                    }
-                    setVehicle({
-                        id: result.vehicleid,
-                        name: `${result.brand} ${result.model}`,
-                        price: result.price,
-                        rating: 4.8,
-                        reviews: 0,
-                        location: result.location,
-                        seats: result.seats ?? 5,
-                        type: result.type,
-                        fuelType: result.fuel,
-                        image: getPrimaryVehicleImage(result.image_urls, result.image_url),
-                    });
                     return;
                 }
 
@@ -233,7 +209,6 @@ const VehicleDetails: React.FC = () => {
                                         </div>
                                         <div>
                                             <p className="text-sm text-gray-500">Hosted by</p>
-                                            <h3 className="font-bold text-gray-900">{ownerName}</h3>
                                             <h3 className="font-bold text-gray-900">{ownerName}</h3>
                                         </div>
                                     </div>

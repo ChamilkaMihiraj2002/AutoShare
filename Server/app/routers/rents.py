@@ -13,6 +13,7 @@ from app.repositories.rent import (
     update_rent,
     accept_rent,
     set_rent_status,
+    set_rent_status_by_renter,
     delete_rent,
 )
 from app.repositories.vehicle import get_vehicle_by_id, update_vehicle
@@ -154,9 +155,46 @@ async def patch_rent(
     payload: RentUpdate,
     decoded_token: dict = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
+    admin_db: AsyncIOMotorDatabase = Depends(get_admin_database),
 ):
     renter_uid = decoded_token.get("uid")
     update_fields = payload.model_dump(exclude_unset=True)
+    rent = await get_rent_by_id(db=db, rent_id=rent_id)
+    if not rent or rent.get("renter_uid") != renter_uid:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    if rent.get("booking_status") in {"cancelled", "completed"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This booking can no longer be modified")
+
+    pricing_inputs = {
+        "start_date",
+        "end_date",
+        "pickup_latitude",
+        "pickup_longitude",
+        "destination_latitude",
+        "destination_longitude",
+        "country_code",
+    }
+    if pricing_inputs.intersection(update_fields.keys()):
+        vehicle = await get_vehicle_by_id(db=db, vehicle_id=rent["vehicle_id"])
+        if not vehicle:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+        merged = {**rent, **update_fields}
+        try:
+            dynamic_pricing = await get_global_dynamic_pricing_settings(admin_db)
+            update_fields["pricing_snapshot"] = calculate_vehicle_pricing(
+                vehicle=vehicle,
+                start_date=merged["start_date"],
+                end_date=merged["end_date"],
+                dynamic_pricing=dynamic_pricing,
+                pickup_latitude=merged.get("pickup_latitude"),
+                pickup_longitude=merged.get("pickup_longitude"),
+                destination_latitude=merged.get("destination_latitude"),
+                destination_longitude=merged.get("destination_longitude"),
+                country_code=merged.get("country_code") or "LK",
+            ).to_dict()
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
     updated = await update_rent(db=db, renter_uid=renter_uid, rent_id=rent_id, update_fields=update_fields)
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
@@ -171,6 +209,53 @@ async def patch_rent(
         metadata={"updated_fields": sorted(update_fields.keys())},
     )
     return updated
+
+
+@router.post("/{rent_id}/cancel-by-renter", response_model=Rent)
+async def cancel_rent_by_renter(
+    rent_id: str,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    renter_uid = decoded_token.get("uid")
+    rent = await get_rent_by_id(db=db, rent_id=rent_id)
+    if not rent or rent.get("renter_uid") != renter_uid:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    if rent.get("booking_status") in {"cancelled", "completed"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This booking can no longer be cancelled")
+
+    if rent.get("booking_status") == "accepted":
+        vehicle = await get_vehicle_by_id(db=db, vehicle_id=rent["vehicle_id"])
+        if not vehicle:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+        updated_vehicle = await update_vehicle(
+            db=db,
+            owner_uid=rent["owner_uid"],
+            vehicle_id=rent["vehicle_id"],
+            update_fields={"availability": True},
+        )
+        if not updated_vehicle:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found or not owned by owner")
+
+    updated_rent = await set_rent_status_by_renter(
+        db=db,
+        renter_uid=renter_uid,
+        rent_id=rent_id,
+        booking_status="cancelled",
+    )
+    if not updated_rent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rent not found or not owned by you")
+    await create_audit_log(
+        db,
+        action="rents.cancel_by_renter",
+        outcome="success",
+        message="Rent request cancelled by renter",
+        actor_uid=renter_uid,
+        entity_type="rent",
+        entity_id=rent_id,
+        metadata={"vehicle_id": rent["vehicle_id"], "owner_uid": rent["owner_uid"]},
+    )
+    return updated_rent
 
 
 @router.post("/{rent_id}/accept", response_model=Rent)
