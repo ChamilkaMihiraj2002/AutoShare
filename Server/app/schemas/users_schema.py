@@ -136,6 +136,7 @@ class PublicUserProfile(BaseModel):
     uid: str
     full_name: str | None = None
     email: EmailStr
+    avatar_url: str | None = None
 
 # ==========================================
 # 2. REGISTRATION REQUESTS

@@ -2,8 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, ArrowUpDown, Filter, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import CarCard from '../components/cards/CarCard';
-import { getPublicVehicles } from '../lib/api';
-import { getPrimaryVehicleImage } from '../lib/profile';
+import { getPublicVehicles, mapVehicleApiToCar } from '../lib/api';
 import type { Car } from '../types';
 
 const VEHICLE_TYPES = ['Sedan', 'SUV', 'Coupe', 'Hatchback', 'Convertible', 'Truck'];
@@ -34,19 +33,7 @@ const SearchVehicles: React.FC = () => {
             setError('');
             try {
                 const result = await getPublicVehicles();
-                const mapped = result.map((vehicle) => ({
-                    id: vehicle.vehicleid,
-                    name: `${vehicle.brand} ${vehicle.model}`,
-                    price: vehicle.price,
-                    rating: 4.8,
-                    reviews: 0,
-                    location: vehicle.location,
-                    seats: vehicle.seats ?? 5,
-                    type: vehicle.type,
-                    fuelType: vehicle.fuel,
-                    image: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
-                    verified: vehicle.verification_status === 'verified',
-                }));
+                const mapped = result.map(mapVehicleApiToCar);
                 setVehicles(mapped);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to load vehicles');

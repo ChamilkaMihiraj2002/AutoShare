@@ -12,6 +12,10 @@ export interface Car {
   verified?: boolean;
   type?: string;
   fuelType?: string;
+  transmission?: string;
+  year?: number;
+  ownerUid?: string;
+  images?: string[];
   coordinates?: {
     lat: number;
     lng: number;
@@ -163,6 +167,7 @@ export interface PublicUserProfile {
   uid: string;
   full_name?: string | null;
   email: string;
+  avatar_url?: string | null;
 }
 
 export interface VehicleApi {

@@ -2,20 +2,9 @@ import React from 'react';
 import { Star, MapPin, Users, BadgeCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatLkr } from '../../lib/currency';
+import type { Car } from '../../types';
 
-interface CarProps {
-  id: string;
-  image: string;
-  name: string;
-  price: number;
-  rating: number;
-  reviews: number;
-  location: string;
-  seats: number;
-  verified?: boolean;
-}
-
-const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, location, seats, verified }) => {
+const CarCard: React.FC<Car> = ({ id, image, name, price, rating, reviews, location, seats, verified, ...vehicle }) => {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
       <div className="relative h-48">
@@ -63,6 +52,7 @@ const CarCard: React.FC<CarProps> = ({ id, image, name, price, rating, reviews, 
               location,
               seats,
               verified,
+              ...vehicle,
             },
           }}
           className="block w-full mt-5 bg-[#003049] text-white py-2.5 rounded-lg font-semibold hover:bg-opacity-90 transition text-center"

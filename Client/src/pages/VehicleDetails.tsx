@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar, BadgeCheck } from 'lucide-react';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { getPublicVehicleById } from '../lib/api';
-import { getPrimaryVehicleImage } from '../lib/profile';
+import { getPublicVehicleById, getUserPublicProfile, mapVehicleApiToCar } from '../lib/api';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
+import { getDisplayNameFromEmail, resolveAvatarUrl } from '../lib/profile';
 import type { Car } from '../types';
 
 type VehicleBookingRouteState = {
@@ -20,6 +20,14 @@ const VehicleDetails: React.FC = () => {
     const [vehicle, setVehicle] = React.useState<Car | null>(routeVehicle);
     const [isLoading, setIsLoading] = React.useState(!routeVehicle);
     const [error, setError] = React.useState('');
+    const [ownerName, setOwnerName] = React.useState('Vehicle Owner');
+    const [ownerAvatar, setOwnerAvatar] = React.useState(resolveAvatarUrl());
+
+    React.useEffect(() => {
+        if (routeVehicle) {
+            setVehicle(routeVehicle);
+        }
+    }, [routeVehicle]);
 
     React.useEffect(() => {
         const loadVehicle = async () => {
@@ -32,19 +40,7 @@ const VehicleDetails: React.FC = () => {
             try {
                 const result = await getPublicVehicleById(id);
                 if (result) {
-                    setVehicle({
-                        id: result.vehicleid,
-                        name: `${result.brand} ${result.model}`,
-                        price: result.price,
-                        rating: 4.8,
-                        reviews: 0,
-                        location: result.location,
-                        seats: result.seats ?? 5,
-                        type: result.type,
-                        fuelType: result.fuel,
-                        image: getPrimaryVehicleImage(result.image_urls, result.image_url),
-                        verified: result.verification_status === 'verified',
-                    });
+                    setVehicle(mapVehicleApiToCar(result));
                     return;
                 }
 
@@ -62,12 +58,34 @@ const VehicleDetails: React.FC = () => {
         void loadVehicle();
     }, [id, routeVehicle]);
 
-    // Mock additional details not in the basic type
+    React.useEffect(() => {
+        const ownerUid = vehicle?.ownerUid;
+        if (!ownerUid) {
+            setOwnerName('Vehicle Owner');
+            setOwnerAvatar(resolveAvatarUrl());
+            return;
+        }
+
+        const loadOwner = async () => {
+            try {
+                const profile = await getUserPublicProfile(ownerUid);
+                const displayName = profile.full_name?.trim() || getDisplayNameFromEmail(profile.email);
+                setOwnerName(displayName);
+                setOwnerAvatar(resolveAvatarUrl(profile.avatar_url));
+            } catch {
+                setOwnerName('Vehicle Owner');
+                setOwnerAvatar(resolveAvatarUrl());
+            }
+        };
+
+        void loadOwner();
+    }, [vehicle?.ownerUid]);
+
     const specifications = {
-        year: 2023,
-        transmission: 'Automatic',
-        fuel: vehicle?.fuelType || 'Electric',
-        capacity: vehicle?.seats || 5
+        year: vehicle?.year,
+        transmission: vehicle?.transmission,
+        fuel: vehicle?.fuelType,
+        capacity: vehicle?.seats,
     };
 
     const [startDate, setStartDate] = useState('');
@@ -161,11 +179,11 @@ const VehicleDetails: React.FC = () => {
                                 <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden">
-                                            <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Host" className="w-full h-full object-cover" />
+                                            <img src={ownerAvatar} alt={ownerName} className="w-full h-full object-cover" />
                                         </div>
                                         <div>
                                             <p className="text-sm text-gray-500">Hosted by</p>
-                                            <h3 className="font-bold text-gray-900">Sarah Johnson</h3>
+                                            <h3 className="font-bold text-gray-900">{ownerName}</h3>
                                         </div>
                                     </div>
                                     <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
@@ -180,29 +198,35 @@ const VehicleDetails: React.FC = () => {
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                                     <Calendar className="mx-auto text-gray-400 mb-2" size={24} />
                                     <div className="text-sm text-gray-500">Year</div>
-                                    <div className="font-bold text-gray-900">{specifications.year}</div>
+                                    <div className="font-bold text-gray-900">{specifications.year ?? 'Not specified'}</div>
                                 </div>
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                                     <Gauge className="mx-auto text-gray-400 mb-2" size={24} />
                                     <div className="text-sm text-gray-500">Transmission</div>
-                                    <div className="font-bold text-gray-900">{specifications.transmission}</div>
+                                    <div className="font-bold text-gray-900">{specifications.transmission ?? 'Not specified'}</div>
                                 </div>
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                                     <Fuel className="mx-auto text-gray-400 mb-2" size={24} />
                                     <div className="text-sm text-gray-500">Fuel</div>
-                                    <div className="font-bold text-gray-900">{specifications.fuel}</div>
+                                    <div className="font-bold text-gray-900">{specifications.fuel ?? 'Not specified'}</div>
                                 </div>
                                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                                     <Users className="mx-auto text-gray-400 mb-2" size={24} />
                                     <div className="text-sm text-gray-500">Capacity</div>
-                                    <div className="font-bold text-gray-900 text-center">{specifications.capacity} seats</div>
+                                    <div className="font-bold text-gray-900 text-center">
+                                        {specifications.capacity ? `${specifications.capacity} seats` : 'Not specified'}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Description */}
                             <h3 className="text-xl font-bold text-gray-900 mb-4">About this vehicle</h3>
                             <p className="text-gray-600 leading-relaxed mb-8">
-                                Experience the future of driving with this pristine {vehicle.name}. Features autopilot, premium sound system, and incredible range. Perfect for city driving or weekend getaways. maintained in excellent condition.
+                                {vehicle.name} is available in {vehicle.location}
+                                {vehicle.type ? ` as a ${vehicle.type.toLowerCase()}` : ''}.
+                                {vehicle.transmission ? ` It comes with ${vehicle.transmission.toLowerCase()} transmission,` : ''}
+                                {vehicle.fuelType ? ` runs on ${vehicle.fuelType.toLowerCase()} fuel,` : ''}
+                                {vehicle.seats ? ` and seats up to ${vehicle.seats} people.` : ''}
                             </p>
 
                             {/* Reviews */}

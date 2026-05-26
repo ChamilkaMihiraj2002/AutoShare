@@ -18,6 +18,7 @@ import type {
 } from '../types';
 import { clearAdminAuthToken, clearAuthToken, getAdminAuthToken, getAuthToken } from './auth';
 import { notifyProfileUpdated } from './profile';
+import { getPrimaryVehicleImage } from './profile';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -36,6 +37,26 @@ function normalizeVehicle(vehicle: RawVehicleApi): VehicleApi {
     seats: Number.isFinite(vehicle.seats) ? vehicle.seats : 5,
     image_urls,
     image_url,
+  };
+}
+
+export function mapVehicleApiToCar(vehicle: VehicleApi) {
+  return {
+    id: vehicle.vehicleid,
+    ownerUid: vehicle.owner_uid,
+    name: `${vehicle.brand} ${vehicle.model}`,
+    price: vehicle.price,
+    rating: 4.8,
+    reviews: 0,
+    location: vehicle.location,
+    seats: vehicle.seats ?? 5,
+    type: vehicle.type,
+    fuelType: vehicle.fuel,
+    transmission: vehicle.transmission,
+    year: vehicle.year,
+    image: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
+    images: vehicle.image_urls ?? [],
+    verified: vehicle.verification_status === 'verified',
   };
 }
 
@@ -196,7 +217,7 @@ export async function getMyProfile(): Promise<UserProfile> {
 }
 
 export async function getUserPublicProfile(uid: string): Promise<PublicUserProfile> {
-  return apiRequest<PublicUserProfile>(`/users/${uid}`, 'GET', undefined, true);
+  return apiRequest<PublicUserProfile>(`/users/${uid}`);
 }
 
 export async function updateMyProfile(payload: {

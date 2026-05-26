@@ -1,4 +1,4 @@
-import { Car, Star, Zap, Settings, Plus, Loader2, BadgeCheck, FileText, ShieldAlert } from 'lucide-react';
+import { Car, Star, Zap, Plus, Loader2, BadgeCheck, FileText, ShieldAlert, MapPin, Fuel, Users, Gauge, ArrowRight, CircleOff, CircleCheckBig } from 'lucide-react';
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import LoadingScreen from '../../components/common/LoadingScreen';
@@ -13,6 +13,10 @@ type VehicleCard = {
   name: string;
   year: number;
   type: string;
+  fuel: string;
+  transmission: string;
+  seats: number;
+  location: string;
   image: string;
   rating: number;
   trips: string;
@@ -63,6 +67,10 @@ const MyVehicles = () => {
         name: `${vehicle.brand} ${vehicle.model}`,
         year: vehicle.year,
         type: vehicle.type,
+        fuel: vehicle.fuel,
+        transmission: vehicle.transmission,
+        seats: vehicle.seats,
+        location: vehicle.location,
         image: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
         rating: 4.8,
         trips: '-',
@@ -262,75 +270,143 @@ const MyVehicles = () => {
     );
   };
 
+  const availabilityBadge = (vehicle: VehicleCard) => (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold ${
+        vehicle.isAvailable
+          ? 'bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-500/20'
+          : 'bg-slate-900/10 text-slate-700 ring-1 ring-slate-900/10'
+      }`}
+    >
+      {vehicle.isAvailable ? <CircleCheckBig size={12} /> : <CircleOff size={12} />}
+      {vehicle.status}
+    </span>
+  );
+
   return (
     <div className="space-y-6 relative">
       <LoadingOverlay show={creating} message="Creating vehicle..." />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {vehicles.map((vehicle) => (
-          <div key={vehicle.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition group">
-            <div className="h-40 bg-gray-200 relative">
-              <img src={vehicle.image} alt={vehicle.name} className="w-full h-full object-cover" />
-              <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-sm">
-                <Star size={12} className="text-orange-500 fill-orange-500" /> {vehicle.rating}
+          <article
+            key={vehicle.id}
+            className="group overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+          >
+            <div className="relative h-36 overflow-hidden bg-slate-200">
+              <img
+                src={vehicle.image}
+                alt={vehicle.name}
+                className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
+              <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
+                {availabilityBadge(vehicle)}
+                <div className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-sm">
+                  <Star size={12} className="fill-orange-500 text-orange-500" />
+                  {vehicle.rating}
+                </div>
+              </div>
+              <div className="absolute bottom-3 left-3 right-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-bold text-white">{vehicle.name}</h3>
+                  <p className="text-xs text-white/78">{vehicle.year} • {vehicle.type}</p>
+                </div>
               </div>
             </div>
-            <div className="p-4">
-              <div className="flex justify-between items-start mb-2 gap-3">
-                <div>
-                  <h3 className="font-bold text-base text-gray-900">{vehicle.name}</h3>
-                  <p className="text-xs text-gray-500">{vehicle.year} • {vehicle.type}</p>
+
+            <div className="space-y-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <MapPin size={13} className="text-slate-400" />
+                    <span className="truncate">{vehicle.location}</span>
+                  </p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">{vehicle.status}</span>
+                <div className="shrink-0">
                   {verificationBadge(vehicle.verificationStatus)}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 my-3 py-3 border-y border-gray-50">
-                <div className="flex items-center gap-2 text-gray-600 text-sm">
-                  <Car size={16} />
-                  <span>{vehicle.trips} Trips</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Daily rate</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">{vehicle.earned}</p>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600 text-sm">
-                  <Zap size={16} />
-                  <span>{vehicle.earned} Earned</span>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Trips</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">{vehicle.trips}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                  <Users size={14} className="text-slate-500" />
+                  <span>{vehicle.seats} seats</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                  <Fuel size={14} className="text-slate-500" />
+                  <span>{vehicle.fuel}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                  <Gauge size={14} className="text-slate-500" />
+                  <span>{vehicle.transmission}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2">
+                  <Car size={14} className="text-slate-500" />
+                  <span>{vehicle.type}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 border-t border-slate-200 pt-3">
                 <Link
                   to={`/dashboard/vehicles/${vehicle.id}`}
-                  className="flex-1 border border-gray-200 py-2 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition text-center"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#003049] px-3 py-2.5 text-xs font-bold text-white transition hover:bg-[#01263a]"
                 >
-                  View Details
+                  Manage Vehicle
+                  <ArrowRight size={14} />
                 </Link>
                 <button
                   type="button"
                   onClick={() => void handleToggleAvailability(vehicle)}
                   disabled={togglingAvailabilityId === vehicle.id}
-                  className="p-2 border border-gray-200 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition disabled:opacity-60"
-                  title={vehicle.isAvailable ? 'Set Unavailable' : 'Set Available'}
+                  className={`inline-flex min-w-[44px] items-center justify-center rounded-xl border px-3 py-2.5 text-xs font-semibold transition disabled:opacity-60 ${
+                    vehicle.isAvailable
+                      ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+                  title={vehicle.isAvailable ? 'Set unavailable' : 'Set available'}
                 >
                   {togglingAvailabilityId === vehicle.id ? (
                     <Loader2 size={20} className="animate-spin" />
                   ) : (
-                    <Settings size={20} />
+                    <>
+                      {vehicle.isAvailable ? <CircleOff size={18} /> : <Zap size={18} />}
+                    </>
                   )}
                 </button>
               </div>
             </div>
-          </div>
+          </article>
         ))}
 
         <button
           onClick={openAddModal}
-          className="bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-6 hover:bg-white hover:border-[#003049] hover:text-[#003049] transition group h-full min-h-[260px]"
+          className="group flex h-full min-h-[290px] flex-col justify-between rounded-[20px] border border-dashed border-slate-300 bg-white p-5 text-left transition duration-300 hover:border-[#003049]/40 hover:shadow-md"
         >
-          <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition">
-            <Plus size={32} className="text-gray-400 group-hover:text-[#003049]" />
+          <div>
+            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 transition group-hover:bg-slate-200">
+              <Plus size={24} className="text-[#003049]" />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Fleet management</p>
+            <h3 className="mt-3 text-lg font-bold text-slate-900">Add a new vehicle</h3>
+            <p className="mt-2 max-w-[220px] text-sm leading-6 text-slate-500">
+              Publish another listing, upload documents, and make it ready for bookings from the same dashboard.
+            </p>
           </div>
-          <h3 className="font-bold text-lg text-gray-500 group-hover:text-[#003049]">Add New Vehicle</h3>
-          <p className="text-sm text-gray-400 text-center mt-2 max-w-[200px]">List another vehicle to earn more</p>
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">
+            <span>Start listing</span>
+            <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+          </div>
         </button>
       </div>
 

@@ -3,8 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Lock, Calendar, MapPin, Navigation } from 'lucide-react';
 import MapWidget from '../components/map/MapWidget';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { createRent, getPublicVehicleById, getVehiclePricingQuote } from '../lib/api';
-import { getPrimaryVehicleImage } from '../lib/profile';
+import { createRent, getPublicVehicleById, getVehiclePricingQuote, mapVehicleApiToCar } from '../lib/api';
 import { formatLkr } from '../lib/currency';
 import type { Car, PricingQuote } from '../types';
 
@@ -85,19 +84,7 @@ const VehicleBooking: React.FC = () => {
           return;
         }
 
-        const mappedVehicle: BookingVehicle = {
-          id: result.vehicleid,
-          ownerUid: result.owner_uid,
-          name: `${result.brand} ${result.model}`,
-          price: result.price,
-          rating: 4.8,
-          reviews: 0,
-          location: result.location,
-          seats: result.seats ?? 5,
-          type: result.type,
-          fuelType: result.fuel,
-          image: getPrimaryVehicleImage(result.image_urls, result.image_url),
-        };
+        const mappedVehicle: BookingVehicle = mapVehicleApiToCar(result);
 
         setVehicle(mappedVehicle);
         setLocation(mappedVehicle.location);
