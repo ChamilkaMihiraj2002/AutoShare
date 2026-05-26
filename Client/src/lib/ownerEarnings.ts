@@ -71,7 +71,7 @@ export function buildOwnerDashboardStats(
     {
       label: 'Completed Bookings',
       value: String(earnings?.summary.all_time.bookings ?? 0),
-      subtext: `${earnings?.summary.this_month.bookings ?? 0} completed this month`,
+      subtext: `${earnings?.summary.this_month.bookings ?? 0} this month • ${earnings?.summary.last_month.bookings ?? 0} last month`,
       subtextClass: 'text-gray-500',
       icon: Calendar,
     },

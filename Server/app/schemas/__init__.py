@@ -55,6 +55,12 @@ from .admin_schema import (
     AdminBookingsResponse,
     AdminVehiclesResponse,
 )
+from .messages_schema import (
+    ChatMessage,
+    Conversation,
+    ConversationCreate,
+    MessageCreate,
+)
 
 __all__ = [
     "UserProfileBase",
@@ -98,4 +104,8 @@ __all__ = [
     "AdminUsersResponse",
     "AdminBookingsResponse",
     "AdminVehiclesResponse",
+    "ChatMessage",
+    "Conversation",
+    "ConversationCreate",
+    "MessageCreate",
 ]

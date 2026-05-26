@@ -237,15 +237,15 @@ const BookingRequests = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h2 className="text-lg font-bold text-[#003049]">All Booking Requests</h2>
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
           <input
             type="text"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search requests..."
-            className="w-full md:w-64 pl-4 pr-10 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#003049] transition text-sm"
+            className="w-full rounded-xl border border-gray-200 py-2.5 pl-4 pr-10 text-sm outline-none transition focus:ring-2 focus:ring-[#003049] md:w-64"
           />
         </div>
       </div>
@@ -257,77 +257,80 @@ const BookingRequests = () => {
       ) : (
         <div className="space-y-4">
           {filtered.map((request) => (
-            <div key={request.id} className="bg-gray-50 p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition">
-              <div className="flex items-start gap-4">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-sm font-bold">
+            <div key={request.id} className="rounded-xl bg-gray-50 p-4 transition hover:shadow-md sm:p-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 items-start gap-4">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-600">
                     {request.renterName.slice(0, 2).toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <h3 className="truncate font-bold text-gray-900">{request.renterName}</h3>
+                      <span
+                        className={`inline-flex w-fit rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
+                          request.status === 'Pending'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : request.status === 'Accepted'
+                              ? 'bg-blue-100 text-blue-700'
+                              : request.status === 'Cancelled'
+                                ? 'bg-red-100 text-red-700'
+                              : 'bg-green-100 text-green-700'
+                        }`}
+                      >
+                        {request.status}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-700">{request.vehicleName}</p>
+                    <div className="mt-2 flex flex-col gap-2 text-sm text-gray-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+                      <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-400" /> {request.dateRange}</span>
+                      <span className="text-base font-bold text-gray-900">{request.amountLabel}</span>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-bold text-gray-900">{request.renterName}</h3>
-                    <span
-                      className={`px-2 py-0.5 text-xs font-bold rounded uppercase tracking-wider ${
-                        request.status === 'Pending'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : request.status === 'Accepted'
-                            ? 'bg-blue-100 text-blue-700'
-                            : request.status === 'Cancelled'
-                              ? 'bg-red-100 text-red-700'
-                            : 'bg-green-100 text-green-700'
-                      }`}
+
+                <div className="flex w-full flex-wrap gap-2 lg:w-auto lg:justify-end">
+                  {request.status === 'Pending' && (
+                    <button
+                      onClick={() => void handleAccept(request)}
+                      disabled={submittingId === request.id}
+                      className="flex-1 rounded-lg bg-[#003049] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#002538] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-5"
                     >
-                      {request.status}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-gray-700">{request.vehicleName}</p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                    <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-400" /> {request.dateRange}</span>
-                    <span className="font-bold text-gray-900 text-base">{request.amountLabel}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 self-end md:self-center w-full md:w-auto">
-                {request.status === 'Pending' && (
+                      {submittingId === request.id ? 'Accepting...' : 'Accept'}
+                    </button>
+                  )}
+                  {request.status === 'Accepted' && (
+                    <>
+                      <button
+                        onClick={() => void handleStatusAction(request, 'cancel')}
+                        disabled={submittingId === request.id}
+                        className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-5"
+                      >
+                        {submittingId === request.id ? 'Updating...' : 'Cancel'}
+                      </button>
+                      <button
+                        onClick={() => void handleStatusAction(request, 'complete')}
+                        disabled={submittingId === request.id}
+                        className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-5"
+                      >
+                        {submittingId === request.id ? 'Updating...' : 'Complete'}
+                      </button>
+                    </>
+                  )}
                   <button
-                    onClick={() => void handleAccept(request)}
-                    disabled={submittingId === request.id}
-                    className="flex-1 md:flex-none px-5 py-2 rounded-lg bg-[#003049] text-white text-sm font-bold hover:bg-[#002538] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={() => setSelectedRequest(request)}
+                    className="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50 sm:flex-none sm:px-5"
                   >
-                    {submittingId === request.id ? 'Accepting...' : 'Accept'}
+                    View
                   </button>
-                )}
-                {request.status === 'Accepted' && (
-                  <>
-                    <button
-                      onClick={() => void handleStatusAction(request, 'cancel')}
-                      disabled={submittingId === request.id}
-                      className="flex-1 md:flex-none px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {submittingId === request.id ? 'Updating...' : 'Cancel'}
-                    </button>
-                    <button
-                      onClick={() => void handleStatusAction(request, 'complete')}
-                      disabled={submittingId === request.id}
-                      className="flex-1 md:flex-none px-5 py-2 rounded-lg bg-green-600 text-white text-sm font-bold hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {submittingId === request.id ? 'Updating...' : 'Complete'}
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => setSelectedRequest(request)}
-                  className="flex-1 md:flex-none px-5 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => setSelectedRequest(request)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition"
-                >
-                  <Eye size={18} />
-                </button>
+                  <button
+                    onClick={() => setSelectedRequest(request)}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 transition hover:bg-gray-50 hover:text-gray-600"
+                  >
+                    <Eye size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -340,6 +343,7 @@ const BookingRequests = () => {
         title="Booking Request Details"
         maxWidthClassName="max-w-5xl"
         bodyClassName="bg-[#f8fafc]"
+        contentClassName="max-w-2xl"
       >
         {selectedRequest && (
           <div className="space-y-5 text-sm">
@@ -468,6 +472,31 @@ const BookingRequests = () => {
                     <span className="text-gray-600">Service fee</span>
                     <span className="font-semibold text-gray-900">{formatLkr(selectedRequest.serviceFee)}</span>
                   </div>
+            <div className="space-y-2 border-t border-gray-100 pt-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-gray-500">Pickup option</span>
+                <span className="font-medium text-gray-900">
+                  {selectedRequest.pickupOption === 'delivery' ? 'Delivery' : 'Self Pickup'}
+                </span>
+              </div>
+              {selectedRequest.deliveryAddress && (
+                <div>
+                  <p className="text-gray-500">Delivery address</p>
+                  <p className="font-medium text-gray-900">{selectedRequest.deliveryAddress}</p>
+                </div>
+              )}
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-gray-500">Insurance</span>
+                <span className="font-medium text-gray-900">{selectedRequest.insurancePlan.toUpperCase()}</span>
+              </div>
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-gray-500">Child seats</span>
+                <span className="font-medium text-gray-900">{selectedRequest.childSeatCount}</span>
+              </div>
+              {selectedRequest.note && (
+                <div>
+                  <p className="text-gray-500">Note</p>
+                  <p className="font-medium text-gray-900">{selectedRequest.note}</p>
                 </div>
               </section>
 

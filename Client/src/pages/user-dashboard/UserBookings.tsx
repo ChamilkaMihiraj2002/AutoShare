@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock } from 'lucide-react';
 import { getMyRents, getPublicVehicles, getUserPublicProfile } from '../../lib/api';
 import LoadingScreen from '../../components/common/LoadingScreen';
@@ -12,6 +13,7 @@ type BookingDisplay = {
 };
 
 const UserBookings = () => {
+    const navigate = useNavigate();
     const [bookings, setBookings] = React.useState<RentApi[]>([]);
     const [displayByRentId, setDisplayByRentId] = React.useState<Map<string, BookingDisplay>>(new Map());
     const [loading, setLoading] = React.useState(true);
@@ -150,6 +152,12 @@ const UserBookings = () => {
                                         </button>
                                         <button className="px-4 py-2 bg-[#003049] text-white font-bold rounded-lg hover:bg-[#002538] transition text-sm shadow-lg shadow-[#003049]/20">
                                             Modify Dates
+                                        </button>
+                                        <button
+                                            onClick={() => navigate(`/user-dashboard/messages?vehicleId=${booking.vehicle_id}&ownerUid=${booking.owner_uid}`)}
+                                            className="px-4 py-2 border border-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition text-sm"
+                                        >
+                                            Message Owner
                                         </button>
                                     </>
                                 )}
