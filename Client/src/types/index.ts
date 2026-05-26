@@ -115,6 +115,26 @@ export interface OwnerEarningsOverview {
   transactions: OwnerEarningsTransaction[];
 }
 
+export interface ChatMessage {
+  messageid: string;
+  sender_uid: string;
+  text: string;
+  created_at: string;
+}
+
+export interface ConversationApi {
+  conversationid: string;
+  vehicle_id: string;
+  owner_uid: string;
+  renter_uid: string;
+  created_at: string;
+  updated_at: string;
+  last_message_at?: string | null;
+  last_message_preview?: string | null;
+  last_message_sender_uid?: string | null;
+  messages: ChatMessage[];
+}
+
 export type AppNotificationType =
   | 'booking_request'
   | 'upcoming_booking'

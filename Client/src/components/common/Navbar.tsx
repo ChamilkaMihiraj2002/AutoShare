@@ -122,6 +122,7 @@ const Navbar = () => {
           <>
             <Link to="/user-dashboard/bookings" className="hover:text-orange-500 transition-colors">Bookings</Link>
             <Link to="/user-dashboard/saved" className="hover:text-orange-500 transition-colors">Saved</Link>
+            <Link to="/user-dashboard/messages" className="hover:text-orange-500 transition-colors">Messages</Link>
           </>
         )}
         {!isLoggedIn && (
@@ -234,6 +235,7 @@ const Navbar = () => {
                 <>
                   <Link to="/user-dashboard/bookings" className="hover:text-orange-500" onClick={closeMenu}>Bookings</Link>
                   <Link to="/user-dashboard/saved" className="hover:text-orange-500" onClick={closeMenu}>Saved</Link>
+                  <Link to="/user-dashboard/messages" className="hover:text-orange-500" onClick={closeMenu}>Messages</Link>
                 </>
               )}
               {!isLoggedIn && (

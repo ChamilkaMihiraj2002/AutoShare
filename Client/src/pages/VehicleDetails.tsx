@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar } from 'lucide-react';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { getPublicVehicleById } from '../lib/api';
+import MessagePopup from '../components/messages/MessagePopup';
+import { getMyProfile, getPublicVehicleById, getUserPublicProfile } from '../lib/api';
+import { getAuthToken } from '../lib/auth';
 import { getPrimaryVehicleImage } from '../lib/profile';
 import { formatLkr } from '../lib/currency';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
@@ -21,6 +23,10 @@ const VehicleDetails: React.FC = () => {
     const [vehicle, setVehicle] = React.useState<Car | null>(routeVehicle);
     const [isLoading, setIsLoading] = React.useState(!routeVehicle);
     const [error, setError] = React.useState('');
+    const [ownerUid, setOwnerUid] = React.useState('');
+    const [ownerName, setOwnerName] = React.useState('Vehicle Owner');
+    const [currentUserUid, setCurrentUserUid] = React.useState('');
+    const [isMessagePopupOpen, setIsMessagePopupOpen] = React.useState(false);
 
     React.useEffect(() => {
         const loadVehicle = async () => {
@@ -33,6 +39,15 @@ const VehicleDetails: React.FC = () => {
             try {
                 const result = await getPublicVehicleById(id);
                 if (result) {
+                    setOwnerUid(result.owner_uid);
+                    if (getAuthToken()) {
+                        try {
+                            const profile = await getUserPublicProfile(result.owner_uid);
+                            setOwnerName(profile.full_name?.trim() || profile.email || 'Vehicle Owner');
+                        } catch {
+                            setOwnerName('Vehicle Owner');
+                        }
+                    }
                     setVehicle({
                         id: result.vehicleid,
                         name: `${result.brand} ${result.model}`,
@@ -109,6 +124,26 @@ const VehicleDetails: React.FC = () => {
         });
     };
 
+    const handleMessageOwner = async () => {
+        if (!ownerUid) return;
+        if (!getAuthToken()) {
+            navigate('/signin', { state: { from: `/vehicles/${vehicle.id}` } });
+            return;
+        }
+
+        try {
+            const profile = await getMyProfile();
+            if (profile.uid === ownerUid) {
+                setError('You cannot message yourself about your own vehicle.');
+                return;
+            }
+            setCurrentUserUid(profile.uid);
+            setIsMessagePopupOpen(true);
+        } catch {
+            navigate('/signin');
+        }
+    };
+
     return (
         <div className="bg-gray-50 min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
@@ -160,10 +195,13 @@ const VehicleDetails: React.FC = () => {
                                         </div>
                                         <div>
                                             <p className="text-sm text-gray-500">Hosted by</p>
-                                            <h3 className="font-bold text-gray-900">Sarah Johnson</h3>
+                                            <h3 className="font-bold text-gray-900">{ownerName}</h3>
                                         </div>
                                     </div>
-                                    <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
+                                    <button
+                                        onClick={() => void handleMessageOwner()}
+                                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
+                                    >
                                         Message Owner
                                     </button>
                                 </div>
@@ -275,6 +313,15 @@ const VehicleDetails: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <MessagePopup
+                isOpen={isMessagePopupOpen}
+                onClose={() => setIsMessagePopupOpen(false)}
+                ownerUid={ownerUid}
+                ownerName={ownerName}
+                vehicleId={vehicle.id}
+                vehicleName={vehicle.name}
+                currentUserUid={currentUserUid}
+            />
         </div>
     );
 };
