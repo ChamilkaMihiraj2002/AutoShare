@@ -30,6 +30,7 @@ async def test_public_vehicle_pricing_quote_returns_dynamic_totals(fake_db, monk
             "severe_weather_multiplier": 1.12,
             "distance_included_km": 10,
             "distance_surcharge_per_km": 15,
+            "service_fee": 18,
             "custom_date_multipliers": [],
         }
     )
@@ -67,4 +68,5 @@ async def test_public_vehicle_pricing_quote_returns_dynamic_totals(fake_db, monk
     assert quote["subtotal"] == 220.0
     assert quote["distance_km"] == 15.0
     assert quote["distance_fee"] > 0
+    assert quote["service_fee"] == 18
     assert quote["total"] > 220.0

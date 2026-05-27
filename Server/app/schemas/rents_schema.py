@@ -19,6 +19,7 @@ class RentPricingSnapshot(BaseModel):
     duration_discount_amount: float = 0.0
     distance_km: float = 0.0
     distance_fee: float = 0.0
+    service_fee: float = 9.0
     holiday_dates: list[str] = Field(default_factory=list)
     weather_summary: list[str] = Field(default_factory=list)
     weather_note: Optional[str] = None

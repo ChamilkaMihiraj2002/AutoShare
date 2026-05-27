@@ -108,6 +108,7 @@ async def test_admin_gets_and_updates_global_dynamic_pricing_settings(fake_db):
 
     assert response.settings.enabled is False
     assert response.settings.weekend_multiplier == 1.0
+    assert response.settings.service_fee == 9.0
 
     updated = await admin_router.admin_update_dynamic_pricing_settings(
         payload=admin_router.AdminDynamicPricingSettings(
@@ -120,6 +121,7 @@ async def test_admin_gets_and_updates_global_dynamic_pricing_settings(fake_db):
             severe_weather_multiplier=1.12,
             distance_included_km=12,
             distance_surcharge_per_km=20,
+            service_fee=25,
             custom_date_multipliers=[],
         ),
         current_admin={"sub": "admin"},
@@ -128,8 +130,10 @@ async def test_admin_gets_and_updates_global_dynamic_pricing_settings(fake_db):
 
     assert updated.settings.enabled is True
     assert updated.settings.weekend_multiplier == 1.2
+    assert updated.settings.service_fee == 25
     stored = await fake_db["pricing_settings"].find_one({"_id": "global_dynamic_pricing"})
     assert stored["distance_surcharge_per_km"] == 20
+    assert stored["service_fee"] == 25
 
 
 @pytest.mark.asyncio

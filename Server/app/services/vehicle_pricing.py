@@ -19,6 +19,7 @@ class PricingQuote:
     duration_discount_amount: float
     distance_km: float
     distance_fee: float
+    service_fee: float
     holiday_dates: list[str]
     weather_summary: list[str]
     weather_note: str | None
@@ -35,6 +36,7 @@ class PricingQuote:
             "duration_discount_amount": self.duration_discount_amount,
             "distance_km": self.distance_km,
             "distance_fee": self.distance_fee,
+            "service_fee": self.service_fee,
             "holiday_dates": self.holiday_dates,
             "weather_summary": self.weather_summary,
             "weather_note": self.weather_note,
@@ -100,6 +102,7 @@ def calculate_vehicle_pricing(
     severe_weather_multiplier = float(resolved_dynamic_pricing.get("severe_weather_multiplier", 1.0) or 1.0)
     distance_included_km = float(resolved_dynamic_pricing.get("distance_included_km", 0.0) or 0.0)
     distance_surcharge_per_km = float(resolved_dynamic_pricing.get("distance_surcharge_per_km", 0.0) or 0.0)
+    service_fee = float(resolved_dynamic_pricing.get("service_fee", 9.0) or 0.0)
     custom_date_multipliers = resolved_dynamic_pricing.get("custom_date_multipliers") or []
     holiday_dates = get_public_holiday_dates(country_code, {booking_day.year for booking_day in booking_days}) if is_dynamic_enabled else set()
     weather_latitude = destination_latitude if destination_latitude is not None else pickup_latitude
@@ -185,6 +188,7 @@ def calculate_vehicle_pricing(
         duration_discount_amount=duration_discount_amount,
         distance_km=distance_km,
         distance_fee=distance_fee,
+        service_fee=round(service_fee, 2),
         holiday_dates=sorted(day.isoformat() for day in holiday_dates if day in booking_days),
         weather_summary=[
             f"{booking_day.isoformat()}: {weather_by_date[booking_day.isoformat()]}"
