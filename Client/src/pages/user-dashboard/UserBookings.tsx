@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Star } from 'lucide-react';
 import { cancelMyRent, getMyRents, getPublicVehicles, getUserPublicProfile, updateMyRent } from '../../lib/api';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import Modal from '../../components/common/Modal';
@@ -13,6 +13,8 @@ type BookingDisplay = {
     vehicleImage: string;
 };
 
+const REVIEW_STORAGE_KEY = 'autoshare-submitted-reviews';
+
 const UserBookings = () => {
     const navigate = useNavigate();
     const [bookings, setBookings] = React.useState<RentApi[]>([]);
@@ -24,6 +26,24 @@ const UserBookings = () => {
     const [editStartDate, setEditStartDate] = React.useState('');
     const [editEndDate, setEditEndDate] = React.useState('');
     const [editError, setEditError] = React.useState('');
+    const [reviewingBooking, setReviewingBooking] = React.useState<RentApi | null>(null);
+    const [reviewRating, setReviewRating] = React.useState(0);
+    const [reviewComment, setReviewComment] = React.useState('');
+    const [reviewError, setReviewError] = React.useState('');
+    const [reviewedRentIds, setReviewedRentIds] = React.useState<Set<string>>(new Set());
+
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            const saved = window.localStorage.getItem(REVIEW_STORAGE_KEY);
+            if (!saved) return;
+            const parsed = JSON.parse(saved) as Record<string, unknown>;
+            setReviewedRentIds(new Set(Object.keys(parsed)));
+        } catch {
+            setReviewedRentIds(new Set());
+        }
+    }, []);
 
     const loadBookings = React.useCallback(async () => {
         setLoading(true);
@@ -135,6 +155,51 @@ const UserBookings = () => {
         }
     };
 
+    const openReviewModal = (booking: RentApi) => {
+        setReviewingBooking(booking);
+        setReviewRating(0);
+        setReviewComment('');
+        setReviewError('');
+    };
+
+    const handleSubmitReview = () => {
+        if (!reviewingBooking) return;
+        if (reviewRating < 1) {
+            setReviewError('Please select a rating before submitting your review.');
+            return;
+        }
+
+        try {
+            const existing = typeof window === 'undefined'
+                ? {}
+                : JSON.parse(window.localStorage.getItem(REVIEW_STORAGE_KEY) || '{}') as Record<string, unknown>;
+
+            const nextReviews = {
+                ...existing,
+                [reviewingBooking.rentid]: {
+                    rentId: reviewingBooking.rentid,
+                    vehicleId: reviewingBooking.vehicle_id,
+                    ownerUid: reviewingBooking.owner_uid,
+                    rating: reviewRating,
+                    comment: reviewComment.trim(),
+                    submittedAt: new Date().toISOString(),
+                },
+            };
+
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(nextReviews));
+            }
+
+            setReviewedRentIds((current) => new Set(current).add(reviewingBooking.rentid));
+            setReviewingBooking(null);
+            setReviewRating(0);
+            setReviewComment('');
+            setReviewError('');
+        } catch {
+            setReviewError('Failed to save your review. Please try again.');
+        }
+    };
+
     if (loading) {
         return <LoadingScreen message="Loading your bookings..." />;
     }
@@ -155,6 +220,7 @@ const UserBookings = () => {
                         const vehicleName = display?.vehicleName || 'Vehicle';
                         const ownerName = display?.ownerName || 'Owner';
                         const vehicleImage = display?.vehicleImage || getPrimaryVehicleImage();
+                        const hasSubmittedReview = reviewedRentIds.has(booking.rentid);
                         return (
                     <div key={booking.rentid} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row gap-6 transition hover:shadow-md">
                         {/* Vehicle Image */}
@@ -225,8 +291,12 @@ const UserBookings = () => {
                                     </>
                                 )}
                                 {status === 'Completed' && (
-                                    <button className="px-4 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600 transition text-sm shadow-lg shadow-orange-500/20">
-                                        Leave a Review
+                                    <button
+                                        onClick={() => openReviewModal(booking)}
+                                        disabled={hasSubmittedReview}
+                                        className="px-4 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600 transition text-sm shadow-lg shadow-orange-500/20 disabled:cursor-not-allowed disabled:bg-orange-200 disabled:shadow-none"
+                                    >
+                                        {hasSubmittedReview ? 'Review Submitted' : 'Leave a Review'}
                                     </button>
                                 )}
                             </div>
@@ -276,6 +346,68 @@ const UserBookings = () => {
                             className="rounded-lg bg-[#003049] px-4 py-2 text-sm font-bold text-white hover:bg-[#002538] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {editingBooking && submittingRentId === editingBooking.rentid ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+            <Modal
+                isOpen={reviewingBooking !== null}
+                onClose={() => setReviewingBooking(null)}
+                title="Leave a Review"
+                maxWidthClassName="max-w-xl"
+            >
+                <div className="space-y-5">
+                    <div>
+                        <p className="text-sm text-gray-500">Share your experience for this completed trip.</p>
+                        <p className="mt-1 font-semibold text-gray-900">
+                            {reviewingBooking ? displayByRentId.get(reviewingBooking.rentid)?.vehicleName || 'Vehicle' : 'Vehicle'}
+                        </p>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700">Your Rating</label>
+                        <div className="flex items-center gap-2">
+                            {[1, 2, 3, 4, 5].map((value) => {
+                                const active = value <= reviewRating;
+                                return (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => {
+                                            setReviewRating(value);
+                                            setReviewError('');
+                                        }}
+                                        className="rounded-full p-1 transition hover:scale-105"
+                                        aria-label={`Rate ${value} star${value > 1 ? 's' : ''}`}
+                                    >
+                                        <Star className={`h-7 w-7 ${active ? 'fill-orange-400 text-orange-400' : 'text-gray-300'}`} />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium text-gray-700">Comments</label>
+                        <textarea
+                            value={reviewComment}
+                            onChange={(event) => setReviewComment(event.target.value)}
+                            rows={4}
+                            placeholder="Tell others about the vehicle, owner communication, and overall trip."
+                            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm"
+                        />
+                    </div>
+                    {reviewError ? <p className="text-sm text-red-600">{reviewError}</p> : null}
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setReviewingBooking(null)}
+                            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSubmitReview}
+                            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-600"
+                        >
+                            Submit Review
                         </button>
                     </div>
                 </div>
