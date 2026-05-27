@@ -7,7 +7,7 @@ import { formatLkr } from '../../lib/currency';
 import { getProfileDisplayName } from '../../lib/profile';
 import type { PricingQuote } from '../../types';
 
-const SERVICE_FEE = 9;
+const DEFAULT_SERVICE_FEE = 9;
 const DELIVERY_FEE = 1500;
 const CHILD_SEAT_DAILY_FEE = 500;
 
@@ -95,7 +95,8 @@ const BookingRequests = () => {
         const insuranceTotal = getInsuranceDailyFee(insurancePlan) * days;
         const deliveryFee = (rent.pickup_option || 'self_pickup') === 'delivery' ? DELIVERY_FEE : 0;
         const childSeatTotal = childSeatCount * CHILD_SEAT_DAILY_FEE * days;
-        const grandTotal = vehiclePricingTotal + insuranceTotal + deliveryFee + childSeatTotal + SERVICE_FEE;
+        const serviceFee = pricingSnapshot?.service_fee ?? DEFAULT_SERVICE_FEE;
+        const grandTotal = vehiclePricingTotal + insuranceTotal + deliveryFee + childSeatTotal + serviceFee;
         const status: BookingRequestRow['status'] =
           rent.booking_status === 'cancelled'
             ? 'Cancelled'
@@ -124,7 +125,7 @@ const BookingRequests = () => {
           insuranceTotal,
           deliveryFee,
           childSeatTotal,
-          serviceFee: SERVICE_FEE,
+          serviceFee,
           grandTotal,
         };
       });
