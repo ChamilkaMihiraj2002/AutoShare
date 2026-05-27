@@ -281,13 +281,22 @@ const BookingRequests = () => {
 
                 <div className="flex w-full flex-wrap gap-2 lg:w-auto lg:justify-end">
                   {request.status === 'Pending' && (
-                    <button
-                      onClick={() => void handleAccept(request)}
-                      disabled={submittingId === request.id}
-                      className="flex-1 rounded-lg bg-[#003049] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#002538] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-5"
-                    >
-                      {submittingId === request.id ? 'Accepting...' : 'Accept'}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => void handleStatusAction(request, 'cancel')}
+                        disabled={submittingId === request.id}
+                        className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-5"
+                      >
+                        {submittingId === request.id ? 'Rejecting...' : 'Reject'}
+                      </button>
+                      <button
+                        onClick={() => void handleAccept(request)}
+                        disabled={submittingId === request.id}
+                        className="flex-1 rounded-lg bg-[#003049] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#002538] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-5"
+                      >
+                        {submittingId === request.id ? 'Accepting...' : 'Accept'}
+                      </button>
+                    </>
                   )}
                   {request.status === 'Accepted' && (
                     <>
@@ -469,6 +478,49 @@ const BookingRequests = () => {
               </section>
 
               <section className="space-y-4">
+                {(selectedRequest.status === 'Pending' || selectedRequest.status === 'Accepted') && (
+                  <div className="rounded-[24px] border border-gray-200 bg-white p-4 sm:p-5">
+                    <div className="flex flex-wrap gap-3">
+                      {selectedRequest.status === 'Pending' && (
+                        <>
+                          <button
+                            onClick={() => void handleStatusAction(selectedRequest, 'cancel')}
+                            disabled={submittingId === selectedRequest.id}
+                            className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {submittingId === selectedRequest.id ? 'Rejecting...' : 'Reject Request'}
+                          </button>
+                          <button
+                            onClick={() => void handleAccept(selectedRequest)}
+                            disabled={submittingId === selectedRequest.id}
+                            className="flex-1 rounded-xl bg-[#003049] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#002538] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {submittingId === selectedRequest.id ? 'Accepting...' : 'Accept Request'}
+                          </button>
+                        </>
+                      )}
+                      {selectedRequest.status === 'Accepted' && (
+                        <>
+                          <button
+                            onClick={() => void handleStatusAction(selectedRequest, 'cancel')}
+                            disabled={submittingId === selectedRequest.id}
+                            className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {submittingId === selectedRequest.id ? 'Updating...' : 'Cancel Booking'}
+                          </button>
+                          <button
+                            onClick={() => void handleStatusAction(selectedRequest, 'complete')}
+                            disabled={submittingId === selectedRequest.id}
+                            className="flex-1 rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {submittingId === selectedRequest.id ? 'Updating...' : 'Mark as Complete'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="rounded-[24px] border border-gray-200 bg-white p-4 sm:p-5">
                   <div className="mb-4 flex items-center gap-2">
                     <MapPinned size={16} className="text-[#003049]" />

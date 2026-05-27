@@ -10,6 +10,7 @@ import type {
   AuthResponse,
   ConversationApi,
   OwnerEarningsOverview,
+  PayHereCheckoutSession,
   PricingQuote,
   PublicUserProfile,
   RentApi,
@@ -463,6 +464,15 @@ export async function createRent(payload: {
 }): Promise<RentApi> {
   const rent = await apiRequest<RawRentApi>('/rents/', 'POST', payload, true);
   return normalizeRent(rent);
+}
+
+export async function createPayHereCheckoutSession(rentId: string): Promise<PayHereCheckoutSession> {
+  return apiRequest<PayHereCheckoutSession>(
+    '/payments/payhere/checkout-session',
+    'POST',
+    { rent_id: rentId },
+    true,
+  );
 }
 
 export async function updateMyRent(

@@ -18,6 +18,7 @@ import app.core.firebase_setup
 # --- Import Routers ---
 from app.routers import general, auth, users
 import app.routers.admin as admin
+import app.routers.payments as payments
 import app.routers.vehicles as vehicles
 import app.routers.rents as rents
 import app.routers.messages as messages
@@ -106,6 +107,7 @@ app.include_router(general.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(users.router)
+app.include_router(payments.router)
 app.include_router(vehicles.router)
 app.include_router(rents.router)
 app.include_router(messages.router)

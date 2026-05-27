@@ -10,6 +10,12 @@ The server expects these variables to be available at runtime:
 - `MONGODB_DB_NAME` — MongoDB database name. This project uses `AutoShare`.
 - `FIREBASE_CREDENTIAL_PATH` — path to the Firebase service account JSON (already mounted via `./secrets` in `docker-compose.yml`).
 - `FIREBASE_API_KEY` — Firebase Web API Key required for email/password sign-in via the Firebase REST API.
+- `PAYHERE_SANDBOX` — set to `true` to use PayHere sandbox checkout. Defaults to `true`.
+- `PAYHERE_MERCHANT_ID` — your PayHere sandbox merchant ID.
+- `PAYHERE_MERCHANT_SECRET` — your PayHere sandbox merchant secret for the current domain.
+- `PAYHERE_RETURN_URL` — where PayHere sends the user after a successful payment.
+- `PAYHERE_CANCEL_URL` — where PayHere sends the user after a cancelled payment.
+- `PAYHERE_NOTIFY_URL` — public backend callback URL used by PayHere to send payment notifications. Defaults to `/payments/payhere/notify`, but localhost will not work from PayHere without a tunnel such as ngrok.
 
 ## Local MongoDB with Docker
 
