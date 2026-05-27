@@ -32,6 +32,7 @@ async def test_create_rent_defaults_to_pending(fake_db, monkeypatch):
             "severe_weather_multiplier": 1.12,
             "distance_included_km": 10,
             "distance_surcharge_per_km": 15,
+            "service_fee": 12,
             "custom_date_multipliers": [],
         }
     )
@@ -69,6 +70,7 @@ async def test_create_rent_defaults_to_pending(fake_db, monkeypatch):
     assert created["booking_status"] == "pending"
     assert created["pricing_snapshot"]["total_days"] == 2
     assert created["pricing_snapshot"]["distance_fee"] > 0
+    assert created["pricing_snapshot"]["service_fee"] == 12
     assert created["pricing_snapshot"]["total"] > 200.0
     logs = list(fake_db["system_logs"]._store.values())
     assert any(log["action"] == "rents.create" and log["entity_id"] == created["_id"] for log in logs)
