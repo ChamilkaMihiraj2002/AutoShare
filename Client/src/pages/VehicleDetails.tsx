@@ -5,8 +5,9 @@ import LoadingScreen from '../components/common/LoadingScreen';
 import { getMyProfile, getPublicVehicleById, getUserPublicProfile, mapVehicleApiToCar } from '../lib/api';
 import MessagePopup from '../components/messages/MessagePopup';
 import { getAuthToken } from '../lib/auth';
+import { formatLkr } from '../lib/currency';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
-import { getDisplayNameFromEmail, resolveAvatarUrl } from '../lib/profile';
+import { getDisplayNameFromEmail, resolveAvatarUrl, resolveBackendAssetUrl } from '../lib/profile';
 import type { Car } from '../types';
 
 type VehicleBookingRouteState = {
@@ -31,12 +32,28 @@ const VehicleDetails: React.FC = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [dateError, setDateError] = useState('');
+    const [selectedImage, setSelectedImage] = useState(routeVehicle?.image ?? '');
 
     React.useEffect(() => {
         if (routeVehicle) {
             setVehicle(routeVehicle);
         }
     }, [routeVehicle]);
+
+    const galleryImages = React.useMemo(() => {
+        if (!vehicle) return [];
+
+        const rawImages = Array.isArray(vehicle.images) ? vehicle.images : [];
+        const orderedImages = [vehicle.image, ...rawImages]
+            .map((imageUrl) => resolveBackendAssetUrl(imageUrl, vehicle.image))
+            .filter(Boolean);
+
+        return Array.from(new Set(orderedImages));
+    }, [vehicle]);
+
+    React.useEffect(() => {
+        setSelectedImage(galleryImages[0] ?? '');
+    }, [galleryImages]);
 
     React.useEffect(() => {
         const loadVehicle = async () => {
@@ -162,17 +179,30 @@ const VehicleDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
                         <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-                            <img src={vehicle.image} alt={vehicle.name} className="w-full h-96 object-cover" />
+                            <img src={selectedImage || galleryImages[0] || vehicle.image} alt={vehicle.name} className="w-full h-96 object-cover" />
                         </div>
 
-                        <div className="flex gap-4">
-                            <div className="w-32 h-24 rounded-lg overflow-hidden cursor-pointer border-2 border-orange-500">
-                                <img src={vehicle.image} alt="Thumbnail 1" className="w-full h-full object-cover" />
+                        {galleryImages.length > 0 && (
+                            <div className="flex flex-wrap gap-4">
+                                {galleryImages.map((imageUrl, index) => {
+                                    const isActive = imageUrl === (selectedImage || galleryImages[0]);
+                                    return (
+                                        <button
+                                            key={`${imageUrl}-${index}`}
+                                            type="button"
+                                            onClick={() => setSelectedImage(imageUrl)}
+                                            className={`h-24 w-32 overflow-hidden rounded-lg border-2 transition ${
+                                                isActive
+                                                    ? 'border-orange-500'
+                                                    : 'border-transparent opacity-70 hover:border-orange-200 hover:opacity-100'
+                                            }`}
+                                        >
+                                            <img src={imageUrl} alt={`${vehicle.name} view ${index + 1}`} className="h-full w-full object-cover" />
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            <div className="w-32 h-24 rounded-lg overflow-hidden cursor-pointer opacity-70 hover:opacity-100 transition">
-                                <img src={vehicle.image} alt="Thumbnail 2" className="w-full h-full object-cover" />
-                            </div>
-                        </div>
+                        )}
 
                         <div>
                             <div className="mb-2 flex flex-wrap items-center gap-3">
@@ -271,6 +301,10 @@ const VehicleDetails: React.FC = () => {
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-24">
                             <div className="mb-6">
                                 <h2 className="text-2xl font-bold text-gray-900">Plan Your Trip</h2>
+                                <p className="text-lg font-semibold text-gray-900 mt-3">
+                                    From {formatLkr(vehicle.price)}/day
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">Base daily rate before live dynamic pricing.</p>
                                 <p className="text-sm text-gray-500 mt-1">Choose your dates and continue to see the live dynamic price.</p>
                             </div>
 

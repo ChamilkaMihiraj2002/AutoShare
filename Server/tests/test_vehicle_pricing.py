@@ -28,6 +28,7 @@ def test_calculate_vehicle_pricing_applies_weekend_and_duration_discount(monkeyp
             "severe_weather_multiplier": 1.12,
             "distance_included_km": 10,
             "distance_surcharge_per_km": 15,
+            "service_fee": 9,
             "custom_date_multipliers": [],
         },
     }
@@ -42,6 +43,7 @@ def test_calculate_vehicle_pricing_applies_weekend_and_duration_discount(monkeyp
     assert quote.subtotal == 740.0
     assert quote.duration_discount_percentage == 10
     assert quote.duration_discount_amount == 74.0
+    assert quote.service_fee == 9
     assert quote.total == 666.0
     assert any("weekend" in multiplier for item in quote.line_items for multiplier in item["applied_multipliers"])
 

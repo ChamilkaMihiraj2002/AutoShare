@@ -263,6 +263,7 @@ class VehicleDynamicPricing(BaseModel):
     severe_weather_multiplier: float = 1.12
     distance_included_km: float = 10.0
     distance_surcharge_per_km: float = 15.0
+    service_fee: float = 9.0
     custom_date_multipliers: list[CustomDateMultiplier] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -279,6 +280,8 @@ class VehicleDynamicPricing(BaseModel):
             raise ValueError("distance_included_km must be 0 or greater")
         if self.distance_surcharge_per_km < 0:
             raise ValueError("distance_surcharge_per_km must be 0 or greater")
+        if self.service_fee < 0:
+            raise ValueError("service_fee must be 0 or greater")
         if not 0 <= self.weekly_discount_percentage <= 100:
             raise ValueError("weekly_discount_percentage must be between 0 and 100")
         if not 0 <= self.monthly_discount_percentage <= 100:

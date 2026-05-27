@@ -7,10 +7,18 @@ import type { Car } from '../types';
 
 const VEHICLE_TYPES = ['Sedan', 'SUV', 'Coupe', 'Hatchback', 'Convertible', 'Truck'];
 const FUEL_TYPES = ['Petrol', 'Diesel', 'Electric', 'Hybrid'];
+const REVIEW_FILTER_OPTIONS = [
+    { value: 'all', label: 'Any rating' },
+    { value: '4.5', label: '4.5+ stars' },
+    { value: '4.7', label: '4.7+ stars' },
+    { value: '4.8', label: '4.8+ stars' },
+];
 const SORT_OPTIONS = [
     { value: 'recommended', label: 'Recommended' },
     { value: 'price-low', label: 'Price: Low to High' },
     { value: 'price-high', label: 'Price: High to Low' },
+    { value: 'rating-high', label: 'Rating: High to Low' },
+    { value: 'reviews-high', label: 'Most Reviews' },
     { value: 'name-asc', label: 'Name: A to Z' },
     { value: 'seats-high', label: 'Seats: High to Low' },
 ];
@@ -23,6 +31,7 @@ const SearchVehicles: React.FC = () => {
     const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>([]);
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState('recommended');
+    const [minimumRating, setMinimumRating] = useState('all');
     const [searchParams] = useSearchParams();
     const initialLocation = searchParams.get('location') ?? '';
     const [searchTerm, setSearchTerm] = useState(initialLocation);
@@ -63,10 +72,12 @@ const SearchVehicles: React.FC = () => {
 
     const filteredVehicles = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
+        const ratingThreshold = minimumRating === 'all' ? 0 : Number(minimumRating);
 
         const matches = vehicles.filter(car => {
             const typeMatch = selectedTypes.length === 0 || (car.type && selectedTypes.includes(car.type));
             const fuelMatch = selectedFuelTypes.length === 0 || (car.fuelType && selectedFuelTypes.includes(car.fuelType));
+            const ratingMatch = car.rating >= ratingThreshold;
             const searchMatch =
                 normalizedSearch.length === 0 ||
                 car.name.toLowerCase().includes(normalizedSearch) ||
@@ -74,7 +85,7 @@ const SearchVehicles: React.FC = () => {
                 car.type?.toLowerCase().includes(normalizedSearch) ||
                 car.fuelType?.toLowerCase().includes(normalizedSearch);
 
-            return typeMatch && fuelMatch && searchMatch;
+            return typeMatch && fuelMatch && ratingMatch && searchMatch;
         });
 
         return [...matches].sort((first, second) => {
@@ -83,6 +94,10 @@ const SearchVehicles: React.FC = () => {
                     return first.price - second.price;
                 case 'price-high':
                     return second.price - first.price;
+                case 'rating-high':
+                    return second.rating - first.rating;
+                case 'reviews-high':
+                    return second.reviews - first.reviews;
                 case 'name-asc':
                     return first.name.localeCompare(second.name);
                 case 'seats-high':
@@ -91,11 +106,12 @@ const SearchVehicles: React.FC = () => {
                     return 0;
             }
         });
-    }, [vehicles, selectedTypes, selectedFuelTypes, searchTerm, sortBy]);
+    }, [vehicles, selectedTypes, selectedFuelTypes, minimumRating, searchTerm, sortBy]);
 
     const clearFilters = () => {
         setSelectedTypes([]);
         setSelectedFuelTypes([]);
+        setMinimumRating('all');
         setSearchTerm('');
         setSortBy('recommended');
     };
@@ -157,7 +173,7 @@ const SearchVehicles: React.FC = () => {
                         <div className="bg-white rounded-xl shadow-sm p-6 sticky top-24">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-bold text-lg">Filters</h3>
-                                {(selectedTypes.length > 0 || selectedFuelTypes.length > 0) && (
+                                {(selectedTypes.length > 0 || selectedFuelTypes.length > 0 || minimumRating !== 'all') && (
                                     <button onClick={clearFilters} className="text-sm text-red-500 hover:text-red-700 font-medium">
                                         Clear All
                                     </button>
@@ -204,6 +220,27 @@ const SearchVehicles: React.FC = () => {
                                             />
                                             <span className={`text-sm ${selectedFuelTypes.includes(type) ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
                                                 {type}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mt-8">
+                                <h4 className="font-medium mb-3 text-gray-900">Reviews</h4>
+                                <div className="space-y-2">
+                                    {REVIEW_FILTER_OPTIONS.map((option) => (
+                                        <label key={option.value} className="flex items-center gap-3 cursor-pointer group">
+                                            <input
+                                                type="radio"
+                                                name="minimum-rating"
+                                                value={option.value}
+                                                checked={minimumRating === option.value}
+                                                onChange={(event) => setMinimumRating(event.target.value)}
+                                                className="h-4 w-4 border-gray-300 text-orange-500 focus:ring-orange-500"
+                                            />
+                                            <span className={`text-sm ${minimumRating === option.value ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
+                                                {option.label}
                                             </span>
                                         </label>
                                     ))}

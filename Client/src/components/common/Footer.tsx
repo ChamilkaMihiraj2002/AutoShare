@@ -1,4 +1,5 @@
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Car } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
   return (
@@ -20,17 +21,19 @@ const Footer = () => {
         <div>
           <h4 className="text-white font-bold mb-6">Quick Links</h4>
           <ul className="space-y-4 text-sm">
-            <li><a href="/" className="hover:text-white">Home</a></li>
-            {/* Update this link */}
-            <li><a href="/services" className="hover:text-white">Services</a></li>
-            <li><a href="#" className="hover:text-white">About Us</a></li>
-            <li><a href="#" className="hover:text-white">Contact Us</a></li>
+            <li><Link to="/" className="hover:text-white">Home</Link></li>
+            <li><Link to="/services" className="hover:text-white">Services</Link></li>
+            <li><Link to="/about" className="hover:text-white">About Us</Link></li>
+            <li><Link to="/contact" className="hover:text-white">Contact Us</Link></li>
           </ul>
         </div>
         <div>
           <h4 className="text-white font-bold mb-6">Support</h4>
           <ul className="space-y-4 text-sm">
-            <li>Help Center</li><li>Safety Guidelines</li><li>Terms of Service</li><li>Privacy Policy</li>
+            <li><Link to="/help-center" className="hover:text-white">Help Center</Link></li>
+            <li><Link to="/safety-guidelines" className="hover:text-white">Safety Guidelines</Link></li>
+            <li><Link to="/terms" className="hover:text-white">Terms of Service</Link></li>
+            <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
           </ul>
         </div>
         <div>

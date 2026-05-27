@@ -138,6 +138,7 @@ export interface AdminDynamicPricingSettings {
   severe_weather_multiplier: number;
   distance_included_km: number;
   distance_surcharge_per_km: number;
+  service_fee: number;
   custom_date_multipliers: CustomDateMultiplier[];
 }
 
@@ -211,6 +212,7 @@ export interface VehicleDynamicPricing {
   severe_weather_multiplier: number;
   distance_included_km: number;
   distance_surcharge_per_km: number;
+  service_fee: number;
   custom_date_multipliers: CustomDateMultiplier[];
 }
 
@@ -230,6 +232,7 @@ export interface PricingQuote {
   duration_discount_amount: number;
   distance_km: number;
   distance_fee: number;
+  service_fee: number;
   holiday_dates: string[];
   weather_summary: string[];
   weather_note?: string | null;

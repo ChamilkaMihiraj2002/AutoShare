@@ -15,6 +15,7 @@ type PricingFormState = {
   severe_weather_multiplier: string;
   distance_included_km: string;
   distance_surcharge_per_km: string;
+  service_fee: string;
   custom_date_multipliers: CustomDateMultiplier[];
 };
 
@@ -28,6 +29,7 @@ const toFormState = (settings: AdminDynamicPricingSettings): PricingFormState =>
   severe_weather_multiplier: String(settings.severe_weather_multiplier),
   distance_included_km: String(settings.distance_included_km),
   distance_surcharge_per_km: String(settings.distance_surcharge_per_km),
+  service_fee: String(settings.service_fee),
   custom_date_multipliers: settings.custom_date_multipliers ?? [],
 });
 
@@ -128,6 +130,7 @@ const AdminPricing = () => {
         severe_weather_multiplier: parseNumber(form.severe_weather_multiplier, 1.12),
         distance_included_km: parseNumber(form.distance_included_km, 10),
         distance_surcharge_per_km: parseNumber(form.distance_surcharge_per_km, 15),
+        service_fee: parseNumber(form.service_fee, 9),
         custom_date_multipliers: form.custom_date_multipliers.filter(
           (item) => item.start_date && item.end_date,
         ),
@@ -224,6 +227,22 @@ const AdminPricing = () => {
             <label className="space-y-1.5">
               <span className="text-sm font-medium text-slate-700">Extra Fee Per km</span>
               <input name="distance_surcharge_per_km" value={form.distance_surcharge_per_km} onChange={handleFieldChange} type="number" step="0.01" min="0" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-5">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Charges</h3>
+              <p className="mt-1 text-sm text-slate-500">Set flat charges that should appear in every booking summary.</p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <label className="space-y-1.5">
+              <span className="text-sm font-medium text-slate-700">Service Fee</span>
+              <input name="service_fee" value={form.service_fee} onChange={handleFieldChange} type="number" step="0.01" min="0" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
             </label>
           </div>
         </section>

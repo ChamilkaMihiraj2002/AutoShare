@@ -108,7 +108,7 @@ const VehicleBooking: React.FC = () => {
   };
 
   const duration = calculateDays(startDate, endDate);
-  const serviceFee = 9;
+  const serviceFee = pricingQuote?.service_fee ?? 0;
   const vehicleSubtotal = pricingQuote
     ? pricingQuote.subtotal - pricingQuote.duration_discount_amount
     : (vehicle ? vehicle.price * duration : 0);
