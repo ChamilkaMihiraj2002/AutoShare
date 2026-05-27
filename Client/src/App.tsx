@@ -5,6 +5,10 @@ import Home from './pages/Home';
 import ServicesPage from './pages/Services';
 import AboutPage from './pages/About';
 import ContactPage from './pages/Contact';
+import HelpCenter from './pages/HelpCenter';
+import SafetyGuidelines from './pages/SafetyGuidelines';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import SignUpRole from './pages/SignUpRole';
@@ -59,6 +63,10 @@ const AppRoutes = () => {
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/help-center" element={<HelpCenter />} />
+          <Route path="/safety-guidelines" element={<SafetyGuidelines />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/admin/signin" element={<AdminLogin />} />
           <Route path="/signup" element={<SignUp />} />

@@ -10,7 +10,7 @@ const CarCard: React.FC<Car> = ({ id, image, name, price, rating, reviews, locat
       <div className="relative h-48">
         <img src={image} alt={name} className="w-full h-full object-cover" />
         <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-sm text-sm font-bold">
-          {formatLkr(price)}/<span className="text-xs font-normal text-gray-500">day</span>
+          From {formatLkr(price)}/<span className="text-xs font-normal text-gray-500">day</span>
         </div>
       </div>
 
@@ -38,6 +38,10 @@ const CarCard: React.FC<Car> = ({ id, image, name, price, rating, reviews, locat
             <Users className="w-4 h-4" /> {seats}
           </div>
         </div>
+
+        <p className="mt-3 text-xs text-gray-500">
+          Base daily rate. Final live price can change based on trip dates.
+        </p>
 
         <Link
           to={`/vehicles/${id}`}
