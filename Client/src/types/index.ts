@@ -162,6 +162,7 @@ export interface UserProfile {
   phone: string;
   roles: UserRole[];
   avatar_url?: string | null;
+  saved_vehicle_ids?: string[];
 }
 
 export interface PublicUserProfile {

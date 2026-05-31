@@ -60,6 +60,7 @@ class UserProfileBase(BaseModel):
         default_factory=lambda: [DEFAULT_ROLE],
         validation_alias=AliasChoices("roles", "role"),
     )
+    saved_vehicle_ids: list[str] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
@@ -87,6 +88,7 @@ class UserProfileUpdate(BaseModel):
         default=None,
         validation_alias=AliasChoices("roles", "role"),
     )
+    saved_vehicle_ids: list[str] | None = None
 
     @model_validator(mode="before")
     @classmethod

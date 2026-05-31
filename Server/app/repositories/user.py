@@ -22,6 +22,9 @@ class UserRepository(BaseRepository):
     async def update_user_profile_by_uid(self, *, uid: str, update_data: dict) -> dict | None:
         return await self.update_by_id(uid, update_data)
 
+    async def set_saved_vehicle_ids(self, *, uid: str, saved_vehicle_ids: list[str]) -> dict | None:
+        return await self.update_by_id(uid, {"saved_vehicle_ids": saved_vehicle_ids})
+
     async def delete_user_profile_by_uid(self, *, uid: str) -> bool:
         return await self.delete_by_id(uid)
 
@@ -45,3 +48,8 @@ async def update_user_profile_by_uid(db: AsyncIOMotorDatabase, *, uid: str, upda
 async def delete_user_profile_by_uid(db: AsyncIOMotorDatabase, *, uid: str) -> bool:
     repo = UserRepository(db)
     return await repo.delete_user_profile_by_uid(uid=uid)
+
+
+async def set_saved_vehicle_ids(db: AsyncIOMotorDatabase, *, uid: str, saved_vehicle_ids: list[str]) -> dict | None:
+    repo = UserRepository(db)
+    return await repo.set_saved_vehicle_ids(uid=uid, saved_vehicle_ids=saved_vehicle_ids)
