@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Search, ArrowUpDown, Filter, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import CarCard from '../components/cards/CarCard';
-import { getPublicVehicles, mapVehicleApiToCar } from '../lib/api';
+import { getMyProfile, getPublicVehicles, mapVehicleApiToCar, removeSavedVehicle, saveVehicle } from '../lib/api';
+import { getAuthToken } from '../lib/auth';
 import type { Car } from '../types';
 
 const VEHICLE_TYPES = ['Sedan', 'SUV', 'Coupe', 'Hatchback', 'Convertible', 'Truck'];
@@ -27,11 +28,14 @@ const SearchVehicles: React.FC = () => {
     const [vehicles, setVehicles] = React.useState<Car[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState('');
+    const [saveError, setSaveError] = React.useState('');
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
     const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>([]);
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState('recommended');
     const [minimumRating, setMinimumRating] = useState('all');
+    const [savedVehicleIds, setSavedVehicleIds] = useState<string[]>([]);
+    const [savingVehicleId, setSavingVehicleId] = useState<string | null>(null);
     const [searchParams] = useSearchParams();
     const initialLocation = searchParams.get('location') ?? '';
     const [searchTerm, setSearchTerm] = useState(initialLocation);
@@ -40,10 +44,15 @@ const SearchVehicles: React.FC = () => {
         const loadVehicles = async () => {
             setLoading(true);
             setError('');
+            setSaveError('');
             try {
-                const result = await getPublicVehicles();
+                const [result, profile] = await Promise.all([
+                    getPublicVehicles(),
+                    getAuthToken() ? getMyProfile().catch(() => null) : Promise.resolve(null),
+                ]);
                 const mapped = result.map(mapVehicleApiToCar);
                 setVehicles(mapped);
+                setSavedVehicleIds(profile?.saved_vehicle_ids ?? []);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to load vehicles');
             } finally {
@@ -114,6 +123,27 @@ const SearchVehicles: React.FC = () => {
         setMinimumRating('all');
         setSearchTerm('');
         setSortBy('recommended');
+    };
+
+    const handleToggleSave = async (vehicleId: string) => {
+        if (!getAuthToken()) {
+            setSaveError('Please sign in to save vehicles.');
+            return;
+        }
+
+        const currentlySaved = savedVehicleIds.includes(vehicleId);
+        setSavingVehicleId(vehicleId);
+        setSaveError('');
+        try {
+            const profile = currentlySaved
+                ? await removeSavedVehicle(vehicleId)
+                : await saveVehicle(vehicleId);
+            setSavedVehicleIds(profile.saved_vehicle_ids ?? []);
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Failed to update saved vehicles');
+        } finally {
+            setSavingVehicleId(null);
+        }
     };
 
     return (
@@ -260,6 +290,12 @@ const SearchVehicles: React.FC = () => {
                             </div>
                         </div>
 
+                        {saveError && (
+                            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                                {saveError}
+                            </div>
+                        )}
+
                         {loading ? (
                             <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-dashed border-gray-300">
                                 <p className="text-gray-500">Loading vehicles...</p>
@@ -271,7 +307,13 @@ const SearchVehicles: React.FC = () => {
                         ) : filteredVehicles.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredVehicles.map(car => (
-                                    <CarCard key={car.id} {...car} />
+                                    <CarCard
+                                        key={car.id}
+                                        {...car}
+                                        isSaved={savedVehicleIds.includes(car.id)}
+                                        onToggleSave={handleToggleSave}
+                                        saveDisabled={savingVehicleId === car.id}
+                                    />
                                 ))}
                             </div>
                         ) : (

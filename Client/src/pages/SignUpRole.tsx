@@ -67,7 +67,7 @@ const SignUpRole = () => {
         {/* Renter Option */}
         <div className={`bg-white p-10 rounded-[2.5rem] border shadow-sm hover:shadow-xl transition-shadow relative overflow-hidden group ${selectedRoles.includes(RENTER_ROLE) ? 'border-[#003049] ring-2 ring-[#003049]/10' : 'border-gray-100'}`}>
           <div className="flex justify-between items-start mb-8">
-            <h2 className="text-2xl font-bold text-[#003049] max-w-[200px]">I want to rent a vehicle</h2>
+            <h2 className="text-2xl font-bold text-[#003049] max-w-[200px]">I want to book a vehicle</h2>
             <div className="bg-blue-50 p-4 rounded-full">
               <User className="w-8 h-8 text-[#003049]" />
             </div>

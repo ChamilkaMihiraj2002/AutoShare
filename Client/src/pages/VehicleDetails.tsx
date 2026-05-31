@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar, BadgeCheck, Heart } from 'lucide-react';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { getMyProfile, getPublicVehicleById, getUserPublicProfile, mapVehicleApiToCar } from '../lib/api';
+import { getMyProfile, getPublicVehicleById, getUserPublicProfile, mapVehicleApiToCar, removeSavedVehicle, saveVehicle } from '../lib/api';
 import MessagePopup from '../components/messages/MessagePopup';
 import { getAuthToken } from '../lib/auth';
 import { formatLkr } from '../lib/currency';
@@ -33,6 +33,9 @@ const VehicleDetails: React.FC = () => {
     const [endDate, setEndDate] = useState('');
     const [dateError, setDateError] = useState('');
     const [selectedImage, setSelectedImage] = useState(routeVehicle?.image ?? '');
+    const [savedVehicleIds, setSavedVehicleIds] = React.useState<string[]>([]);
+    const [savePending, setSavePending] = React.useState(false);
+    const [saveError, setSaveError] = React.useState('');
 
     React.useEffect(() => {
         if (routeVehicle) {
@@ -54,6 +57,24 @@ const VehicleDetails: React.FC = () => {
     React.useEffect(() => {
         setSelectedImage(galleryImages[0] ?? '');
     }, [galleryImages]);
+
+    React.useEffect(() => {
+        const loadSavedVehicles = async () => {
+            if (!getAuthToken()) {
+                setSavedVehicleIds([]);
+                return;
+            }
+
+            try {
+                const profile = await getMyProfile();
+                setSavedVehicleIds(profile.saved_vehicle_ids ?? []);
+            } catch {
+                setSavedVehicleIds([]);
+            }
+        };
+
+        void loadSavedVehicles();
+    }, []);
 
     React.useEffect(() => {
         const loadVehicle = async () => {
@@ -168,6 +189,28 @@ const VehicleDetails: React.FC = () => {
         }
     };
 
+    const handleToggleSave = async () => {
+        if (!vehicle) return;
+        if (!getAuthToken()) {
+            navigate('/signin', { state: { from: `/vehicles/${vehicle.id}` } });
+            return;
+        }
+
+        const currentlySaved = savedVehicleIds.includes(vehicle.id);
+        setSavePending(true);
+        setSaveError('');
+        try {
+            const profile = currentlySaved
+                ? await removeSavedVehicle(vehicle.id)
+                : await saveVehicle(vehicle.id);
+            setSavedVehicleIds(profile.saved_vehicle_ids ?? []);
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Failed to update saved vehicles');
+        } finally {
+            setSavePending(false);
+        }
+    };
+
     return (
         <div className="bg-gray-50 min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
@@ -207,6 +250,19 @@ const VehicleDetails: React.FC = () => {
                         <div>
                             <div className="mb-2 flex flex-wrap items-center gap-3">
                                 <h1 className="text-3xl font-bold text-gray-900">{vehicle.name}</h1>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleToggleSave()}
+                                    disabled={savePending}
+                                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                                        savedVehicleIds.includes(vehicle.id)
+                                            ? 'border-red-200 bg-red-50 text-red-600'
+                                            : 'border-gray-200 bg-white text-gray-700 hover:border-red-200 hover:text-red-500'
+                                    } disabled:opacity-60`}
+                                >
+                                    <Heart size={16} fill={savedVehicleIds.includes(vehicle.id) ? 'currentColor' : 'none'} />
+                                    {savedVehicleIds.includes(vehicle.id) ? 'Saved' : 'Save'}
+                                </button>
                                 {vehicle.verified && (
                                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
                                         <BadgeCheck size={14} />
@@ -225,6 +281,8 @@ const VehicleDetails: React.FC = () => {
                                     <span>{vehicle.location}</span>
                                 </div>
                             </div>
+
+                            {saveError && <p className="mb-4 text-sm text-red-600">{saveError}</p>}
 
                             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
                                 <div className="flex justify-between items-center">
