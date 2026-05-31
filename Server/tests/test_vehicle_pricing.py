@@ -249,3 +249,40 @@ def test_calculate_vehicle_pricing_returns_zero_distance_when_route_service_fail
 
     assert quote.distance_km == 0.0
     assert quote.distance_fee == 0.0
+
+
+def test_calculate_vehicle_pricing_prefers_vehicle_distance_settings_over_global(monkeypatch):
+    monkeypatch.setattr(vehicle_pricing, "get_public_holiday_dates", lambda country_code, years: set())
+    monkeypatch.setattr(vehicle_pricing, "get_route_distance_km", lambda *args: 20.0)
+    monkeypatch.setattr(
+        vehicle_pricing,
+        "get_daily_weather_summary",
+        lambda latitude, longitude, dates: SimpleNamespace(summary_by_date={}, note=None),
+    )
+
+    vehicle = {
+        "price": 100.0,
+        "dynamic_pricing": {
+            "distance_included_km": 12,
+            "distance_surcharge_per_km": 25,
+        },
+    }
+    global_dynamic_pricing = {
+        "enabled": True,
+        "distance_included_km": 5,
+        "distance_surcharge_per_km": 10,
+    }
+
+    quote = calculate_vehicle_pricing(
+        vehicle=vehicle,
+        start_date="2026-05-24T09:00:00Z",
+        end_date="2026-05-25T09:00:00Z",
+        dynamic_pricing=global_dynamic_pricing,
+        pickup_latitude=6.9271,
+        pickup_longitude=79.8612,
+        destination_latitude=7.2906,
+        destination_longitude=80.6337,
+    )
+
+    assert quote.distance_km == 20.0
+    assert quote.distance_fee == 200.0

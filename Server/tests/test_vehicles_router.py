@@ -22,12 +22,20 @@ async def test_create_and_list_my_vehicles(fake_db):
         brand="Mazda",
         year=2018,
         model="Mazda3",
+        dynamic_pricing={
+            "distance_included_km": 20,
+            "distance_surcharge_per_km": 30,
+        },
     )
 
     created = await vehicles_router.create_vehicle_endpoint(payload, decoded_token={"uid": owner}, db=fake_db)
     assert created is not None
     assert created["_id"] == "rv1"
     assert created["owner_uid"] == owner
+    assert created["dynamic_pricing"] == {
+        "distance_included_km": 20.0,
+        "distance_surcharge_per_km": 30.0,
+    }
     logs = list(fake_db["system_logs"]._store.values())
     assert any(log["action"] == "vehicles.create" and log["entity_id"] == "rv1" for log in logs)
 
@@ -67,6 +75,23 @@ async def test_patch_and_delete_vehicle_behavior(fake_db):
     assert updated["price"] == 99.9
     logs = list(fake_db["system_logs"]._store.values())
     assert any(log["action"] == "vehicles.update" and log["entity_id"] == vid for log in logs)
+
+    distance_payload = VehicleUpdate(
+        dynamic_pricing={
+            "distance_included_km": 18,
+            "distance_surcharge_per_km": 22,
+        }
+    )
+    updated_distance = await vehicles_router.patch_vehicle(
+        vehicle_id=vid,
+        payload=distance_payload,
+        decoded_token={"uid": owner},
+        db=fake_db,
+    )
+    assert updated_distance["dynamic_pricing"] == {
+        "distance_included_km": 18.0,
+        "distance_surcharge_per_km": 22.0,
+    }
 
     # patch nonexistent -> raises
     with pytest.raises(HTTPException):
