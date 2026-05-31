@@ -1,14 +1,47 @@
 import React from 'react';
-import { Star, MapPin, Users, BadgeCheck } from 'lucide-react';
+import { Star, MapPin, Users, BadgeCheck, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatLkr } from '../../lib/currency';
 import type { Car } from '../../types';
 
-const CarCard: React.FC<Car> = ({ id, image, name, price, rating, reviews, location, seats, verified, ...vehicle }) => {
+type CarCardProps = Car & {
+  isSaved?: boolean;
+  onToggleSave?: (vehicleId: string) => void | Promise<void>;
+  saveDisabled?: boolean;
+};
+
+const CarCard: React.FC<CarCardProps> = ({
+  id,
+  image,
+  name,
+  price,
+  rating,
+  reviews,
+  location,
+  seats,
+  verified,
+  isSaved = false,
+  onToggleSave,
+  saveDisabled = false,
+  ...vehicle
+}) => {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
       <div className="relative h-48">
         <img src={image} alt={name} className="w-full h-full object-cover" />
+        {onToggleSave && (
+          <button
+            type="button"
+            aria-label={isSaved ? 'Remove from saved vehicles' : 'Save vehicle'}
+            onClick={() => void onToggleSave(id)}
+            disabled={saveDisabled}
+            className={`absolute left-4 top-4 rounded-full p-2 shadow-sm transition ${
+              isSaved ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:text-red-500'
+            } disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            <Heart className="h-4 w-4" fill={isSaved ? 'currentColor' : 'none'} />
+          </button>
+        )}
         <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-sm text-sm font-bold">
           From {formatLkr(price)}/<span className="text-xs font-normal text-gray-500">day</span>
         </div>

@@ -17,6 +17,7 @@ import type {
   UserProfile,
   UserRole,
   VehicleApi,
+  VehicleDynamicPricing,
 } from '../types';
 import { clearAdminAuthToken, clearAuthToken, getAdminAuthToken, getAuthToken } from './auth';
 import { notifyProfileUpdated } from './profile';
@@ -227,6 +228,23 @@ export async function getMyProfile(): Promise<UserProfile> {
   return apiRequest<UserProfile>('/users/me', 'GET', undefined, true);
 }
 
+export async function getMySavedVehicles(): Promise<VehicleApi[]> {
+  const vehicles = await apiRequest<RawVehicleApi[]>('/users/me/saved-vehicles', 'GET', undefined, true);
+  return vehicles.map(normalizeVehicle);
+}
+
+export async function saveVehicle(vehicleId: string): Promise<UserProfile> {
+  const profile = await apiRequest<UserProfile>(`/users/me/saved-vehicles/${vehicleId}`, 'POST', undefined, true);
+  notifyProfileUpdated(profile);
+  return profile;
+}
+
+export async function removeSavedVehicle(vehicleId: string): Promise<UserProfile> {
+  const profile = await apiRequest<UserProfile>(`/users/me/saved-vehicles/${vehicleId}`, 'DELETE', undefined, true);
+  notifyProfileUpdated(profile);
+  return profile;
+}
+
 export async function getUserPublicProfile(uid: string): Promise<PublicUserProfile> {
   return apiRequest<PublicUserProfile>(`/users/${uid}`);
 }
@@ -304,6 +322,7 @@ export async function createMyVehicle(payload: {
   year: number;
   model: string;
   seats: number;
+  dynamic_pricing?: Pick<VehicleDynamicPricing, 'distance_included_km' | 'distance_surcharge_per_km'>;
 }): Promise<VehicleApi> {
   const vehicle = await apiRequest<RawVehicleApi>('/vehicles/', 'POST', payload, true);
   return normalizeVehicle(vehicle);
@@ -324,6 +343,7 @@ export async function updateMyVehicle(
     seats?: number;
     image_urls?: string[];
     image_url?: string;
+    dynamic_pricing?: Pick<VehicleDynamicPricing, 'distance_included_km' | 'distance_surcharge_per_km'>;
   },
 ): Promise<VehicleApi> {
   const vehicle = await apiRequest<RawVehicleApi>(`/vehicles/${vehicleId}`, 'PATCH', payload, true);
