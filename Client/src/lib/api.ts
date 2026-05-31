@@ -7,6 +7,8 @@ import type {
   AdminVehicleVerificationItem,
   AdminVehiclesResponse,
   AdminUsersResponse,
+  AssistantChatResponse,
+  AssistantChatTurn,
   AuthResponse,
   ConversationApi,
   OwnerEarningsOverview,
@@ -285,6 +287,13 @@ export async function getPublicVehicles(): Promise<VehicleApi[]> {
 export async function getPublicVehicleById(vehicleId: string): Promise<VehicleApi | null> {
   const vehicles = await getPublicVehicles();
   return vehicles.find((vehicle) => vehicle.vehicleid === vehicleId) || null;
+}
+
+export async function chatVehicleAssistant(payload: {
+  message: string;
+  history?: AssistantChatTurn[];
+}): Promise<AssistantChatResponse> {
+  return apiRequest<AssistantChatResponse>('/assistant/chat', 'POST', payload);
 }
 
 export async function getMyRents(): Promise<RentApi[]> {

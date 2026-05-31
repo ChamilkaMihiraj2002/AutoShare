@@ -44,6 +44,12 @@ from .messages_schema import (
     ConversationCreate,
     MessageCreate,
 )
+from .assistant_schema import (
+    AssistantChatTurn,
+    AssistantChatRequest,
+    AssistantChatResponse,
+    AssistantVehicleRecommendation,
+)
 from .payments_schema import (
     PayHereCheckoutSessionRequest,
     PayHereCheckoutSessionResponse,
@@ -103,6 +109,10 @@ __all__ = [
     "Conversation",
     "ConversationCreate",
     "MessageCreate",
+    "AssistantChatTurn",
+    "AssistantChatRequest",
+    "AssistantChatResponse",
+    "AssistantVehicleRecommendation",
     "PayHereCheckoutSessionRequest",
     "PayHereCheckoutSessionResponse",
     "AdminLoginRequest",

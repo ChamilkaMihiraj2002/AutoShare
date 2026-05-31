@@ -331,6 +331,34 @@ export interface ConversationApi {
   messages: ChatMessage[];
 }
 
+export interface AssistantChatTurn {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface AssistantVehicleRecommendation {
+  vehicle_id: string;
+  name: string;
+  location: string;
+  price_per_day: number;
+  seats: number;
+  type: string;
+  fuel: string;
+  transmission: string;
+  availability: boolean;
+  verified: boolean;
+  image_url?: string | null;
+  reason: string;
+}
+
+export interface AssistantChatResponse {
+  reply: string;
+  recommendations: AssistantVehicleRecommendation[];
+  source: string;
+  model?: string | null;
+  warning?: string | null;
+}
+
 export type AppNotificationType =
   | 'booking_request'
   | 'upcoming_booking'
