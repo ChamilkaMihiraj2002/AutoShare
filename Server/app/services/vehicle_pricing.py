@@ -74,6 +74,20 @@ def _resolve_duration_discount(total_days: int, dynamic_pricing: dict | None) ->
     return 0.0
 
 
+def _resolve_vehicle_dynamic_pricing(
+    vehicle: dict,
+    dynamic_pricing: dict | None,
+) -> dict:
+    resolved = dict(dynamic_pricing or vehicle.get("dynamic_pricing") or {})
+    vehicle_dynamic_pricing = vehicle.get("dynamic_pricing") or {}
+
+    for field in ("distance_included_km", "distance_surcharge_per_km"):
+        if field in vehicle_dynamic_pricing and vehicle_dynamic_pricing.get(field) is not None:
+            resolved[field] = vehicle_dynamic_pricing[field]
+
+    return resolved
+
+
 def calculate_vehicle_pricing(
     *,
     vehicle: dict,
@@ -94,7 +108,7 @@ def calculate_vehicle_pricing(
 
     booking_days = _date_span(start_dt.date(), end_dt.date())
     base_daily_price = round(float(vehicle.get("price", 0) or 0), 2)
-    resolved_dynamic_pricing = dynamic_pricing if dynamic_pricing is not None else (vehicle.get("dynamic_pricing") or {})
+    resolved_dynamic_pricing = _resolve_vehicle_dynamic_pricing(vehicle, dynamic_pricing)
     is_dynamic_enabled = bool(resolved_dynamic_pricing.get("enabled"))
     weekend_multiplier = float(resolved_dynamic_pricing.get("weekend_multiplier", 1.0) or 1.0)
     holiday_multiplier = float(resolved_dynamic_pricing.get("holiday_multiplier", 1.0) or 1.0)

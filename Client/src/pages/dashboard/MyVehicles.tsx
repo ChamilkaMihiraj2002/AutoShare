@@ -33,6 +33,8 @@ const defaultForm = {
   fuel: 'Petrol',
   transmission: 'Automatic',
   price: '',
+  distance_included_km: '10',
+  distance_surcharge_per_km: '15',
   year: String(new Date().getFullYear()),
   seats: '5',
   location: '',
@@ -141,6 +143,8 @@ const MyVehicles = () => {
     setCreateError('');
 
     const price = Number(form.price);
+    const distanceIncludedKm = Number(form.distance_included_km);
+    const distanceSurchargePerKm = Number(form.distance_surcharge_per_km);
     const year = Number(form.year);
     const seats = Number(form.seats);
 
@@ -151,6 +155,14 @@ const MyVehicles = () => {
 
     if (!Number.isFinite(price) || price <= 0) {
       setCreateError('Please enter a valid daily price.');
+      return;
+    }
+    if (!Number.isFinite(distanceIncludedKm) || distanceIncludedKm < 0) {
+      setCreateError('Please enter a valid included distance.');
+      return;
+    }
+    if (!Number.isFinite(distanceSurchargePerKm) || distanceSurchargePerKm < 0) {
+      setCreateError('Please enter a valid extra fee per km.');
       return;
     }
 
@@ -180,6 +192,10 @@ const MyVehicles = () => {
         seats,
         location: form.location.trim(),
         availability: form.availability,
+        dynamic_pricing: {
+          distance_included_km: distanceIncludedKm,
+          distance_surcharge_per_km: distanceSurchargePerKm,
+        },
       });
       if (imageFiles.length > 0) {
         if (!created.vehicleid) {
@@ -427,16 +443,6 @@ const MyVehicles = () => {
                   Add the main vehicle details, set your daily rate, upload images, and submit verification documents in one place.
                 </p>
               </div>
-              <label className="inline-flex items-center gap-2 rounded-2xl bg-white/12 px-4 py-3 text-sm font-medium backdrop-blur-sm">
-                <input
-                  type="checkbox"
-                  name="availability"
-                  checked={form.availability}
-                  onChange={handleFormChange}
-                  className="rounded border-white/40 text-[#003049]"
-                />
-                Available for booking
-              </label>
             </div>
           </div>
 
@@ -487,6 +493,16 @@ const MyVehicles = () => {
                   <input name="location" value={form.location} onChange={handleFormChange} className={inputClassName} required />
                 </div>
               </div>
+              <label className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  name="availability"
+                  checked={form.availability}
+                  onChange={handleFormChange}
+                  className="rounded border-slate-300 text-[#003049]"
+                />
+                Available for booking
+              </label>
             </section>
 
             <section className={sectionClassName}>
@@ -507,6 +523,14 @@ const MyVehicles = () => {
                   <label className="mb-1 block text-sm font-medium text-gray-700">Price Per Day (Rs)</label>
                   <input type="number" step="0.01" min="1" name="price" value={form.price} onChange={handleFormChange} className={inputClassName} required />
                 </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Included Distance (km)</label>
+                  <input type="number" step="0.01" min="0" name="distance_included_km" value={form.distance_included_km} onChange={handleFormChange} className={inputClassName} required />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Extra Fee Per km (Rs)</label>
+                  <input type="number" step="0.01" min="0" name="distance_surcharge_per_km" value={form.distance_surcharge_per_km} onChange={handleFormChange} className={inputClassName} required />
+                </div>
                 <div className="sm:col-span-2 rounded-2xl bg-gray-50 p-4">
                   <p className="text-xs uppercase tracking-wide text-gray-500">Quick Preview</p>
                   <p className="mt-2 text-lg font-bold text-[#003049]">
@@ -515,7 +539,7 @@ const MyVehicles = () => {
                   <p className="mt-1 text-sm text-gray-600">
                     {form.price ? `${formatLkr(Number(form.price))}/day` : 'Set a daily price'} • {form.location || 'Add a location'}
                   </p>
-                  <p className="mt-3 text-xs text-gray-500">Admins manage dynamic pricing rules that can adjust the live booking quote for all vehicles.</p>
+                  <p className="mt-3 text-xs text-gray-500">Admins manage the shared pricing multipliers, while you control the included distance and extra per-km charge for this vehicle.</p>
                 </div>
               </div>
             </section>

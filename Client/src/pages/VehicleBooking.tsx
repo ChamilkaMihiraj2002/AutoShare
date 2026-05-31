@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Lock, Calendar, MapPin, Navigation } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Navigation } from 'lucide-react';
 import MapWidget from '../components/map/MapWidget';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { createRent, getPublicVehicleById, getVehiclePricingQuote, mapVehicleApiToCar } from '../lib/api';
+import { createPayHereCheckoutSession, createRent, getPublicVehicleById, getVehiclePricingQuote, mapVehicleApiToCar } from '../lib/api';
 import { formatLkr } from '../lib/currency';
+import type { PayHereCheckoutSession } from '../types';
 import type { Car, PricingQuote } from '../types';
 
 interface BookingVehicle extends Car {
@@ -14,6 +15,43 @@ interface BookingVehicle extends Car {
 type VehicleBookingRouteState = {
   startDate?: string;
   endDate?: string;
+};
+
+const submitPayHereForm = (session: PayHereCheckoutSession) => {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = session.action_url;
+
+  const fields: Record<string, string> = {
+    merchant_id: session.merchant_id,
+    return_url: session.return_url,
+    cancel_url: session.cancel_url,
+    notify_url: session.notify_url,
+    first_name: session.first_name,
+    last_name: session.last_name,
+    email: session.email,
+    phone: session.phone,
+    address: session.address,
+    city: session.city,
+    country: session.country,
+    order_id: session.order_id,
+    items: session.items,
+    currency: session.currency,
+    amount: session.amount,
+    hash: session.hash,
+  };
+
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
 };
 
 const VehicleBooking: React.FC = () => {
@@ -184,7 +222,7 @@ const VehicleBooking: React.FC = () => {
     }
     setIsSubmitting(true);
     try {
-      await createRent({
+      const rent = await createRent({
         vehicle_id: vehicle.id,
         owner_uid: vehicle.ownerUid,
         start_date: new Date(startDate).toISOString(),
@@ -200,7 +238,8 @@ const VehicleBooking: React.FC = () => {
         child_seat_count: childSeatCount,
         note: note.trim() || undefined,
       });
-      navigate('/user-dashboard/bookings');
+      const session = await createPayHereCheckoutSession(rent.rentid);
+      submitPayHereForm(session);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Booking failed');
     } finally {
@@ -370,38 +409,6 @@ const VehicleBooking: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="text-xl font-bold text-gray-900">Payment Information</div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-                  <input type="text" placeholder="1234 5678 9012 3456" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                    <input type="text" placeholder="MM/YY" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">CVC</label>
-                    <input type="text" placeholder="123" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name on Card</label>
-                  <input type="text" placeholder="John Doe" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50" />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-500 mt-6">
-                <Lock size={16} />
-                Your payment information is secure and encrypted
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Required for your trip</h2>
               <p className="text-gray-600 mb-6">
                 By selecting the button below, I agree to the Host's House Rules, Ground Rules for guests, AutoShare's Rebooking and Refund Policy, and that AutoShare can charge my payment method if I'm responsible for damage.
@@ -411,7 +418,7 @@ const VehicleBooking: React.FC = () => {
                 disabled={isSubmitting}
                 className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold hover:bg-orange-600 transition text-lg shadow-lg shadow-orange-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Confirming...' : `Confirm & Pay ${formatLkr(total)}`}
+                {isSubmitting ? 'Redirecting to PayHere...' : `Pay with PayHere Sandbox ${formatLkr(total)}`}
               </button>
               {submitError && <p className="mt-3 text-sm text-red-600">{submitError}</p>}
             </div>

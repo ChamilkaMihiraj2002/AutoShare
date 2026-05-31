@@ -42,6 +42,8 @@ const VehicleManage = () => {
     fuel: 'Petrol',
     transmission: 'Automatic',
     price: '',
+    distance_included_km: '10',
+    distance_surcharge_per_km: '15',
     year: String(new Date().getFullYear()),
     seats: '5',
     location: '',
@@ -75,6 +77,8 @@ const VehicleManage = () => {
         fuel: vehicle.fuel,
         transmission: vehicle.transmission,
         price: String(vehicle.price),
+        distance_included_km: String(vehicle.dynamic_pricing?.distance_included_km ?? 10),
+        distance_surcharge_per_km: String(vehicle.dynamic_pricing?.distance_surcharge_per_km ?? 15),
         year: String(vehicle.year),
         seats: String(vehicle.seats ?? 5),
         location: vehicle.location,
@@ -161,6 +165,8 @@ const VehicleManage = () => {
     if (!id) return;
 
     const price = Number(form.price);
+    const distanceIncludedKm = Number(form.distance_included_km);
+    const distanceSurchargePerKm = Number(form.distance_surcharge_per_km);
     const year = Number(form.year);
     const seats = Number(form.seats);
 
@@ -171,6 +177,14 @@ const VehicleManage = () => {
 
     if (!Number.isFinite(price) || price <= 0) {
       showToast('error', 'Please enter a valid daily price.');
+      return;
+    }
+    if (!Number.isFinite(distanceIncludedKm) || distanceIncludedKm < 0) {
+      showToast('error', 'Please enter a valid included distance.');
+      return;
+    }
+    if (!Number.isFinite(distanceSurchargePerKm) || distanceSurchargePerKm < 0) {
+      showToast('error', 'Please enter a valid extra fee per km.');
       return;
     }
 
@@ -196,6 +210,10 @@ const VehicleManage = () => {
         seats,
         location: form.location.trim(),
         availability: form.availability,
+        dynamic_pricing: {
+          distance_included_km: distanceIncludedKm,
+          distance_surcharge_per_km: distanceSurchargePerKm,
+        },
       });
       showToast('success', 'Vehicle updated successfully.');
     } catch (err) {
@@ -474,7 +492,15 @@ const VehicleManage = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (Rs)</label>
               <input type="number" step="0.01" min="1" name="price" value={form.price} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
-              <p className="mt-2 text-xs text-gray-500">Admins manage the dynamic pricing rules that adjust live booking quotes across all vehicles.</p>
+              <p className="mt-2 text-xs text-gray-500">Admins manage the shared pricing rules, while you control this vehicle's included distance and extra per-km fee.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Included Distance (km)</label>
+              <input type="number" step="0.01" min="0" name="distance_included_km" value={form.distance_included_km} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Extra Fee Per km (Rs)</label>
+              <input type="number" step="0.01" min="0" name="distance_surcharge_per_km" value={form.distance_surcharge_per_km} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>

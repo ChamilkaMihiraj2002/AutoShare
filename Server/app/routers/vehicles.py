@@ -41,6 +41,10 @@ ALLOWED_DOCUMENT_TYPES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
 }
+OWNER_DYNAMIC_PRICING_FIELDS = {
+    "distance_included_km",
+    "distance_surcharge_per_km",
+}
 
 
 def _normalize_image_url(image_url: str) -> str:
@@ -68,6 +72,19 @@ def _normalize_document_url(document_url: str) -> str:
     if parsed.scheme and parsed.netloc:
         return parsed.path
     return document_url
+
+
+def _extract_owner_dynamic_pricing(payload: dict) -> dict | None:
+    dynamic_pricing = payload.get("dynamic_pricing")
+    if not isinstance(dynamic_pricing, dict):
+        return None
+
+    owner_dynamic_pricing = {
+        field: dynamic_pricing[field]
+        for field in OWNER_DYNAMIC_PRICING_FIELDS
+        if dynamic_pricing.get(field) is not None
+    }
+    return owner_dynamic_pricing or None
 
 
 async def _save_vehicle_document(vehicle_id: str, upload: UploadFile, suffix: str) -> str:
@@ -99,7 +116,7 @@ async def create_vehicle_endpoint(
 ):
     owner_uid = decoded_token.get("uid")
     payload_data = payload.model_dump()
-    payload_data.pop("dynamic_pricing", None)
+    payload_data["dynamic_pricing"] = _extract_owner_dynamic_pricing(payload_data)
     documents = payload_data.get("verification_documents") or {}
     has_documents = bool(documents.get("vehicle_book_url")) and bool(documents.get("vehicle_license_url"))
     payload_data["verification_status"] = "pending" if has_documents else "not_submitted"
@@ -165,8 +182,11 @@ async def patch_vehicle(
 ):
     owner_uid = decoded_token.get("uid")
     update_fields = payload.model_dump(exclude_unset=True)
+    owner_dynamic_pricing = _extract_owner_dynamic_pricing(update_fields)
+    if "dynamic_pricing" in update_fields:
+        update_fields["dynamic_pricing"] = owner_dynamic_pricing
+
     for restricted_field in (
-        "dynamic_pricing",
         "verification_documents",
         "verification_status",
         "verification_notes",

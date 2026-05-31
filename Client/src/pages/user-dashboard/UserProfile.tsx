@@ -323,7 +323,7 @@ const UserProfile = () => {
                         <div className="text-sm font-medium text-gray-500">Total Rentals</div>
                     </div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-                        <div className="text-3xl font-extrabold text-[#003049] mb-1">-</div>
+                        <div className="text-3xl font-extrabold text-[#003049] mb-1">{profile.saved_vehicle_ids?.length ?? 0}</div>
                         <div className="text-sm font-medium text-gray-500">Saved Vehicles</div>
                     </div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">

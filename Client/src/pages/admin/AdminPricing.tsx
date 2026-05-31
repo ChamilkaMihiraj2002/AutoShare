@@ -13,8 +13,6 @@ type PricingFormState = {
   holiday_multiplier: string;
   rainy_weather_multiplier: string;
   severe_weather_multiplier: string;
-  distance_included_km: string;
-  distance_surcharge_per_km: string;
   service_fee: string;
   custom_date_multipliers: CustomDateMultiplier[];
 };
@@ -27,8 +25,6 @@ const toFormState = (settings: AdminDynamicPricingSettings): PricingFormState =>
   holiday_multiplier: String(settings.holiday_multiplier),
   rainy_weather_multiplier: String(settings.rainy_weather_multiplier),
   severe_weather_multiplier: String(settings.severe_weather_multiplier),
-  distance_included_km: String(settings.distance_included_km),
-  distance_surcharge_per_km: String(settings.distance_surcharge_per_km),
   service_fee: String(settings.service_fee),
   custom_date_multipliers: settings.custom_date_multipliers ?? [],
 });
@@ -128,8 +124,8 @@ const AdminPricing = () => {
         holiday_multiplier: parseNumber(form.holiday_multiplier, 1.15),
         rainy_weather_multiplier: parseNumber(form.rainy_weather_multiplier, 1.05),
         severe_weather_multiplier: parseNumber(form.severe_weather_multiplier, 1.12),
-        distance_included_km: parseNumber(form.distance_included_km, 10),
-        distance_surcharge_per_km: parseNumber(form.distance_surcharge_per_km, 15),
+        distance_included_km: 10,
+        distance_surcharge_per_km: 15,
         service_fee: parseNumber(form.service_fee, 9),
         custom_date_multipliers: form.custom_date_multipliers.filter(
           (item) => item.start_date && item.end_date,
@@ -168,7 +164,7 @@ const AdminPricing = () => {
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">Apply one pricing policy across the full fleet</h2>
           <p className="max-w-3xl text-sm leading-relaxed text-white/80">
-            Vehicle owners only set their base day rate. These admin rules adjust live quotes for weekends, holidays, weather, distance, and special date windows.
+            Vehicle owners set the base day rate plus their included distance and extra per-km fee. These admin rules adjust live quotes for weekends, holidays, weather, and special date windows.
           </p>
         </div>
       </section>
@@ -219,14 +215,6 @@ const AdminPricing = () => {
             <label className="space-y-1.5">
               <span className="text-sm font-medium text-slate-700">Severe Weather Multiplier</span>
               <input name="severe_weather_multiplier" value={form.severe_weather_multiplier} onChange={handleFieldChange} type="number" step="0.01" min="0.01" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Included Distance (km)</span>
-              <input name="distance_included_km" value={form.distance_included_km} onChange={handleFieldChange} type="number" step="0.01" min="0" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium text-slate-700">Extra Fee Per km</span>
-              <input name="distance_surcharge_per_km" value={form.distance_surcharge_per_km} onChange={handleFieldChange} type="number" step="0.01" min="0" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" />
             </label>
           </div>
         </section>

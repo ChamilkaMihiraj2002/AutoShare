@@ -1,11 +1,13 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { User, Settings, Bell, MessageSquare } from 'lucide-react';
+import { User, Settings, Bell, MessageSquare, CalendarRange, Heart } from 'lucide-react';
 
 const UserDashboardLayout = () => {
     const location = useLocation();
     const normalizedPath = (location.pathname.replace(/\/+$/, '') || '/user-dashboard').toLowerCase();
     const showProfileChrome =
         normalizedPath === '/user-dashboard' ||
+        normalizedPath === '/user-dashboard/bookings' ||
+        normalizedPath === '/user-dashboard/saved' ||
         normalizedPath === '/user-dashboard/settings' ||
         normalizedPath === '/user-dashboard/notifications' ||
         normalizedPath === '/user-dashboard/messages';
@@ -31,6 +33,20 @@ const UserDashboardLayout = () => {
                             >
                                 <User size={18} />
                                 Profile
+                            </NavLink>
+                            <NavLink
+                                to="/user-dashboard/bookings"
+                                className={({ isActive }) => `flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all ${isActive ? "bg-[#003049] text-white shadow-md" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"}`}
+                            >
+                                <CalendarRange size={18} />
+                                Bookings
+                            </NavLink>
+                            <NavLink
+                                to="/user-dashboard/saved"
+                                className={({ isActive }) => `flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all ${isActive ? "bg-[#003049] text-white shadow-md" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"}`}
+                            >
+                                <Heart size={18} />
+                                Saved
                             </NavLink>
                             <NavLink
                                 to="/user-dashboard/settings"

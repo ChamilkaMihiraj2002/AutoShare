@@ -11,8 +11,10 @@ from app.repositories.user import (
     get_user_profile_by_uid,
     update_user_profile_by_uid,
     delete_user_profile_by_uid,
+    set_saved_vehicle_ids,
 )
-from app.schemas import UserProfile, UserProfileUpdate, PublicUserProfile
+from app.repositories.vehicle import get_vehicle_by_id, list_all_vehicles
+from app.schemas import UserProfile, UserProfileUpdate, PublicUserProfile, Vehicle
 from app.services.audit_log import create_audit_log
 
 router = APIRouter(
@@ -24,6 +26,20 @@ UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024
 ALLOWED_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+
+
+def _normalize_saved_vehicle_ids(saved_vehicle_ids: list[str] | None) -> list[str]:
+    if not saved_vehicle_ids:
+        return []
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for vehicle_id in saved_vehicle_ids:
+        cleaned = (vehicle_id or "").strip()
+        if cleaned and cleaned not in seen:
+            seen.add(cleaned)
+            normalized.append(cleaned)
+    return normalized
 
 @router.get("/me", response_model=UserProfile)
 async def read_current_user(
@@ -166,5 +182,93 @@ async def upload_avatar(
         entity_type="user",
         entity_id=user_uid,
         metadata={"avatar_url": avatar_url},
+    )
+    return updated
+
+
+@router.get("/me/saved-vehicles", response_model=list[Vehicle])
+async def read_saved_vehicles(
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user_uid = decoded_token.get("uid")
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+
+    saved_vehicle_ids = _normalize_saved_vehicle_ids(profile.get("saved_vehicle_ids"))
+    if not saved_vehicle_ids:
+        return []
+
+    vehicles = await list_all_vehicles(db=db, limit=1000)
+    vehicle_by_id = {str(vehicle.get("_id")): vehicle for vehicle in vehicles}
+    return [vehicle_by_id[vehicle_id] for vehicle_id in saved_vehicle_ids if vehicle_id in vehicle_by_id]
+
+
+@router.post("/me/saved-vehicles/{vehicle_id}", response_model=UserProfile)
+async def save_vehicle_for_current_user(
+    vehicle_id: str,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user_uid = decoded_token.get("uid")
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+
+    vehicle = await get_vehicle_by_id(db=db, vehicle_id=vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+
+    saved_vehicle_ids = _normalize_saved_vehicle_ids(profile.get("saved_vehicle_ids"))
+    if vehicle_id not in saved_vehicle_ids:
+        saved_vehicle_ids.append(vehicle_id)
+
+    updated = await set_saved_vehicle_ids(db, uid=user_uid, saved_vehicle_ids=saved_vehicle_ids)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+
+    await create_audit_log(
+        db,
+        action="users.save_vehicle",
+        outcome="success",
+        message="Vehicle saved for user",
+        actor_uid=user_uid,
+        actor_email=updated.get("email"),
+        entity_type="vehicle",
+        entity_id=vehicle_id,
+    )
+    return updated
+
+
+@router.delete("/me/saved-vehicles/{vehicle_id}", response_model=UserProfile)
+async def remove_saved_vehicle_for_current_user(
+    vehicle_id: str,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user_uid = decoded_token.get("uid")
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+
+    saved_vehicle_ids = [
+        saved_vehicle_id
+        for saved_vehicle_id in _normalize_saved_vehicle_ids(profile.get("saved_vehicle_ids"))
+        if saved_vehicle_id != vehicle_id
+    ]
+    updated = await set_saved_vehicle_ids(db, uid=user_uid, saved_vehicle_ids=saved_vehicle_ids)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+
+    await create_audit_log(
+        db,
+        action="users.remove_saved_vehicle",
+        outcome="success",
+        message="Saved vehicle removed for user",
+        actor_uid=user_uid,
+        actor_email=updated.get("email"),
+        entity_type="vehicle",
+        entity_id=vehicle_id,
     )
     return updated
