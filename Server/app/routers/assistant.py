@@ -9,6 +9,7 @@ from app.services.ollama_assistant import (
     build_fallback_reply,
     build_recommendation_payload,
     query_ollama_chat,
+    select_recommendation_vehicles,
     shortlist_vehicles_for_prompt,
 )
 
@@ -37,9 +38,11 @@ async def assistant_chat(
         model = None
         warning = f"Ollama was unavailable, so local recommendation mode was used instead. ({exc})"
 
+    visible_recommendations = select_recommendation_vehicles(reply, shortlist)
+
     return AssistantChatResponse(
         reply=reply,
-        recommendations=build_recommendation_payload(shortlist),
+        recommendations=build_recommendation_payload(visible_recommendations),
         source=source,
         model=model,
         warning=warning,

@@ -40,6 +40,14 @@ def _vehicle_name(vehicle: dict) -> str:
     return f"{vehicle.get('brand', '').strip()} {vehicle.get('model', '').strip()}".strip() or "Vehicle"
 
 
+def _normalize_text(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def _normalize_line(value: str) -> str:
+    return value.strip().lower()
+
+
 def _extract_seat_request(query: str) -> int | None:
     match = re.search(r"(\d+)\s*[- ]?\s*seat", query)
     if match:
@@ -297,9 +305,72 @@ def query_ollama_chat(query: str, history: list[AssistantChatTurn], shortlist: l
     return text
 
 
+def _extract_ranked_reply_lines(reply: str) -> list[str]:
+    ranked_lines: list[str] = []
+    for raw_line in reply.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        normalized = _normalize_line(line)
+        if normalized.startswith(("i excluded", "excluded", "not recommended", "i didn't consider", "i did not consider")):
+            continue
+
+        if re.match(r"^(\d+[\).\s-]+|[-*]\s+)", line):
+            ranked_lines.append(line)
+
+    return ranked_lines
+
+
+def select_recommendation_vehicles(reply: str, shortlist: list[dict], fallback_limit: int = 3) -> list[dict]:
+    if not shortlist:
+        return []
+
+    ranked_lines = _extract_ranked_reply_lines(reply)
+    remaining_by_id = {str(vehicle.get("_id") or ""): vehicle for vehicle in shortlist}
+    ordered_matches: list[dict] = []
+
+    for line in ranked_lines:
+        normalized_line = _normalize_text(line)
+
+        # Prefer exact ID matches when the model includes them.
+        line_id_matches = re.findall(r"\b[a-f0-9]{24}\b", line.lower())
+        for vehicle_id in line_id_matches:
+            vehicle = remaining_by_id.pop(vehicle_id, None)
+            if vehicle is not None:
+                ordered_matches.append(vehicle)
+
+        # Fall back to vehicle name matching inside ranked lines only.
+        if line_id_matches:
+            continue
+
+        for vehicle in shortlist:
+            vehicle_id = str(vehicle.get("_id") or "")
+            if vehicle_id not in remaining_by_id:
+                continue
+
+            vehicle_name = _vehicle_name(vehicle)
+            normalized_name = _normalize_text(vehicle_name)
+            brand = _normalize_text(str(vehicle.get("brand") or ""))
+            model = _normalize_text(str(vehicle.get("model") or ""))
+
+            mentions_name = normalized_name and normalized_name in normalized_line
+            mentions_brand_model = bool(brand and model and brand in normalized_line and model in normalized_line)
+
+            if mentions_name or mentions_brand_model:
+                ordered_matches.append(vehicle)
+                remaining_by_id.pop(vehicle_id, None)
+                break
+
+    if ordered_matches:
+        return ordered_matches
+
+    return shortlist[:fallback_limit]
+
+
 def build_recommendation_payload(shortlist: list[dict]) -> list[dict]:
     recommendations: list[dict] = []
-    for vehicle in shortlist[:4]:
+    for vehicle in shortlist:
         recommendations.append(
             {
                 "vehicle_id": str(vehicle.get("_id") or ""),

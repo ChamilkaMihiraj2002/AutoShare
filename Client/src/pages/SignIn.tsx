@@ -129,11 +129,6 @@ const SignIn = () => {
           <span className="text-gray-500">Don't have an account? </span>
           <Link to="/signup" className="text-[#003049] font-bold hover:underline">Sign Up</Link>
         </div>
-        <div className="mt-3 text-center text-sm font-medium">
-          <span className="text-gray-500">Need admin access? </span>
-          <Link to="/admin/signin" className="text-orange-600 font-bold hover:underline">Open Admin Login</Link>
-        </div>
-
         {/* Social Logins */}
         <div className="mt-10">
           <div className="relative flex items-center justify-center mb-8">

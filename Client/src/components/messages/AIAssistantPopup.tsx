@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, LoaderCircle, MessageCircleMore, Send, Sparkles, X } from 'lucide-react';
+import { Bot, LoaderCircle, Send, Sparkles, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { chatVehicleAssistant } from '../../lib/api';
 import { formatLkr } from '../../lib/currency';
@@ -127,7 +127,7 @@ const AIAssistantPopup: React.FC = () => {
 
                       {message.recommendations?.length ? (
                         <div className="grid gap-3">
-                          {message.recommendations.map((vehicle) => (
+                          {message.recommendations.map((vehicle, index) => (
                             <Link
                               key={vehicle.vehicle_id}
                               to={`/vehicles/${vehicle.vehicle_id}`}
@@ -140,6 +140,9 @@ const AIAssistantPopup: React.FC = () => {
                               />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
+                                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-700">
+                                    #{index + 1}
+                                  </span>
                                   <p className="truncate font-semibold text-slate-900">{vehicle.name}</p>
                                   {vehicle.verified ? (
                                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
@@ -209,13 +212,12 @@ const AIAssistantPopup: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-[140] inline-flex items-center gap-3 rounded-full bg-[linear-gradient(135deg,#f77f00_0%,#fcbf49_100%)] px-5 py-4 text-sm font-bold text-slate-950 shadow-[0_18px_48px_rgba(247,127,0,0.35)] transition hover:scale-[1.02]"
+        className="fixed bottom-6 right-6 z-[140] inline-flex items-center justify-center rounded-full bg-[linear-gradient(135deg,#f77f00_0%,#fcbf49_100%)] p-4 text-slate-950 shadow-[0_18px_48px_rgba(247,127,0,0.35)] transition hover:scale-[1.02]"
+        aria-label="Open AI vehicle assistant"
       >
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80">
           {sending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Bot className="h-5 w-5" />}
         </span>
-        <span className="hidden sm:inline">Ask AI for the best vehicle</span>
-        <MessageCircleMore className="h-5 w-5 sm:hidden" />
       </button>
     </>
   );
