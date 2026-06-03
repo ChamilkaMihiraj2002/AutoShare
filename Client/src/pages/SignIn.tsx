@@ -136,7 +136,7 @@ const SignIn = () => {
             <span className="relative bg-white px-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Or continue with</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <button
               type="button"
               onClick={handleGoogleLogin}
@@ -145,10 +145,6 @@ const SignIn = () => {
             >
               <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
               {isGoogleSubmitting ? 'Connecting...' : 'Google'}
-            </button>
-            <button className="flex items-center justify-center gap-2 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition font-bold text-gray-700">
-              <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" className="w-5 h-5" alt="Facebook" />
-              Facebook
             </button>
           </div>
         </div>
