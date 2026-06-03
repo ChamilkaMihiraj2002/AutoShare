@@ -59,6 +59,8 @@ async def register_email_user(
     profile_data = UserProfileBase(
         full_name=payload.full_name,
         address=payload.address,
+        city=payload.city,
+        postal_code=payload.postal_code,
         nic=payload.nic,
         phone=payload.phone,
         roles=payload.roles,

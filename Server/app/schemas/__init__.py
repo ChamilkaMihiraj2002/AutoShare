@@ -54,6 +54,12 @@ from .payments_schema import (
     PayHereCheckoutSessionRequest,
     PayHereCheckoutSessionResponse,
 )
+from .reviews_schema import (
+    VehicleReview,
+    VehicleReviewCreate,
+    VehicleReviewSummary,
+    VehicleReviewWithAuthor,
+)
 from .admin_schema import (
     AdminLoginRequest,
     AdminAuthResponse,
@@ -115,6 +121,10 @@ __all__ = [
     "AssistantVehicleRecommendation",
     "PayHereCheckoutSessionRequest",
     "PayHereCheckoutSessionResponse",
+    "VehicleReview",
+    "VehicleReviewCreate",
+    "VehicleReviewSummary",
+    "VehicleReviewWithAuthor",
     "AdminLoginRequest",
     "AdminAuthResponse",
     "AdminOverviewStats",
