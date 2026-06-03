@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, Star } from 'lucide-react';
-import { cancelMyRent, getMyRents, getPublicVehicles, getUserPublicProfile, updateMyRent } from '../../lib/api';
+import { cancelMyRent, getMyRents, getMyVehicleReviews, getPublicVehicles, getUserPublicProfile, submitVehicleReview, updateMyRent } from '../../lib/api';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import Modal from '../../components/common/Modal';
 import { getPrimaryVehicleImage, getProfileDisplayName } from '../../lib/profile';
@@ -12,9 +12,6 @@ type BookingDisplay = {
     vehicleName: string;
     vehicleImage: string;
 };
-
-const REVIEW_STORAGE_KEY = 'autoshare-submitted-reviews';
-
 const UserBookings = () => {
     const navigate = useNavigate();
     const [bookings, setBookings] = React.useState<RentApi[]>([]);
@@ -32,25 +29,16 @@ const UserBookings = () => {
     const [reviewError, setReviewError] = React.useState('');
     const [reviewedRentIds, setReviewedRentIds] = React.useState<Set<string>>(new Set());
 
-    React.useEffect(() => {
-        if (typeof window === 'undefined') return;
-
-        try {
-            const saved = window.localStorage.getItem(REVIEW_STORAGE_KEY);
-            if (!saved) return;
-            const parsed = JSON.parse(saved) as Record<string, unknown>;
-            setReviewedRentIds(new Set(Object.keys(parsed)));
-        } catch {
-            setReviewedRentIds(new Set());
-        }
-    }, []);
-
     const loadBookings = React.useCallback(async () => {
         setLoading(true);
         setError('');
         try {
-            const result = await getMyRents();
+            const [result, myReviews] = await Promise.all([
+                getMyRents(),
+                getMyVehicleReviews().catch(() => []),
+            ]);
             setBookings(result);
+            setReviewedRentIds(new Set(myReviews.map((review) => review.rent_id)));
 
             const [vehicles, ownerEntries] = await Promise.all([
                 getPublicVehicles(),
@@ -162,41 +150,30 @@ const UserBookings = () => {
         setReviewError('');
     };
 
-    const handleSubmitReview = () => {
+    const handleSubmitReview = async () => {
         if (!reviewingBooking) return;
         if (reviewRating < 1) {
             setReviewError('Please select a rating before submitting your review.');
             return;
         }
 
+        setSubmittingRentId(reviewingBooking.rentid);
+        setReviewError('');
         try {
-            const existing = typeof window === 'undefined'
-                ? {}
-                : JSON.parse(window.localStorage.getItem(REVIEW_STORAGE_KEY) || '{}') as Record<string, unknown>;
-
-            const nextReviews = {
-                ...existing,
-                [reviewingBooking.rentid]: {
-                    rentId: reviewingBooking.rentid,
-                    vehicleId: reviewingBooking.vehicle_id,
-                    ownerUid: reviewingBooking.owner_uid,
-                    rating: reviewRating,
-                    comment: reviewComment.trim(),
-                    submittedAt: new Date().toISOString(),
-                },
-            };
-
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(REVIEW_STORAGE_KEY, JSON.stringify(nextReviews));
-            }
-
+            await submitVehicleReview({
+                rent_id: reviewingBooking.rentid,
+                rating: reviewRating,
+                comment: reviewComment.trim(),
+            });
             setReviewedRentIds((current) => new Set(current).add(reviewingBooking.rentid));
             setReviewingBooking(null);
             setReviewRating(0);
             setReviewComment('');
             setReviewError('');
-        } catch {
-            setReviewError('Failed to save your review. Please try again.');
+        } catch (err) {
+            setReviewError(err instanceof Error ? err.message : 'Failed to save your review. Please try again.');
+        } finally {
+            setSubmittingRentId(null);
         }
     };
 
@@ -404,10 +381,11 @@ const UserBookings = () => {
                             Cancel
                         </button>
                         <button
-                            onClick={handleSubmitReview}
+                            onClick={() => void handleSubmitReview()}
+                            disabled={reviewingBooking ? submittingRentId === reviewingBooking.rentid : false}
                             className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-600"
                         >
-                            Submit Review
+                            {reviewingBooking && submittingRentId === reviewingBooking.rentid ? 'Submitting...' : 'Submit Review'}
                         </button>
                     </div>
                 </div>

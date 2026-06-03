@@ -15,6 +15,8 @@ const OwnerSettings = () => {
         email: '',
         phone: '',
         address: '',
+        city: '',
+        postal_code: '',
         bio: 'Automotive enthusiast and experienced host.'
     });
 
@@ -40,6 +42,8 @@ const OwnerSettings = () => {
                     email: profile.email,
                     phone: profile.phone,
                     address: profile.address,
+                    city: profile.city || '',
+                    postal_code: profile.postal_code || '',
                 }));
                 setAvatarSrc(resolveAvatarUrl(profile.avatar_url));
             } catch (err) {
@@ -57,12 +61,16 @@ const OwnerSettings = () => {
             const updated = await updateMyProfile({
                 phone: profileData.phone,
                 address: profileData.address,
+                city: profileData.city,
+                postal_code: profileData.postal_code,
             });
             setProfileData((prev) => ({
                 ...prev,
                 email: updated.email,
                 phone: updated.phone,
                 address: updated.address,
+                city: updated.city || '',
+                postal_code: updated.postal_code || '',
             }));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to save profile');
@@ -173,6 +181,26 @@ const OwnerSettings = () => {
                                         type="tel"
                                         name="phone"
                                         value={profileData.phone}
+                                        onChange={handleProfileChange}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        value={profileData.city}
+                                        onChange={handleProfileChange}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                                    <input
+                                        type="text"
+                                        name="postal_code"
+                                        value={profileData.postal_code}
                                         onChange={handleProfileChange}
                                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
                                     />

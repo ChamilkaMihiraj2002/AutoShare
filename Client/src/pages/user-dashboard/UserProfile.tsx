@@ -1,4 +1,4 @@
-import { Shield, CheckCircle, Edit2, Mail, Phone, MapPin, User } from 'lucide-react';
+import { Shield, CheckCircle, Edit2, Mail, Phone, MapPin, User, MapPinned, Hash } from 'lucide-react';
 import React from 'react';
 import { getMyProfile, updateMyProfile, uploadMyAvatar } from '../../lib/api';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
@@ -17,6 +17,8 @@ const UserProfile = () => {
         full_name: '',
         phone: '',
         address: '',
+        city: '',
+        postal_code: '',
         nic: '',
     });
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -32,6 +34,8 @@ const UserProfile = () => {
                     full_name: result.full_name || '',
                     phone: result.phone,
                     address: result.address,
+                    city: result.city || '',
+                    postal_code: result.postal_code || '',
                     nic: result.nic,
                 });
             } catch (err) {
@@ -72,6 +76,8 @@ const UserProfile = () => {
                 full_name: updatedProfile.full_name || '',
                 phone: updatedProfile.phone,
                 address: updatedProfile.address,
+                city: updatedProfile.city || '',
+                postal_code: updatedProfile.postal_code || '',
                 nic: updatedProfile.nic,
             });
         } catch (err) {
@@ -94,6 +100,8 @@ const UserProfile = () => {
             full_name: profile.full_name || '',
             phone: profile.phone,
             address: profile.address,
+            city: profile.city || '',
+            postal_code: profile.postal_code || '',
             nic: profile.nic,
         });
         setIsEditing(true);
@@ -105,6 +113,8 @@ const UserProfile = () => {
             full_name: profile.full_name || '',
             phone: profile.phone,
             address: profile.address,
+            city: profile.city || '',
+            postal_code: profile.postal_code || '',
             nic: profile.nic,
         });
         setIsEditing(false);
@@ -118,6 +128,8 @@ const UserProfile = () => {
             full_name: form.full_name.trim(),
             phone: form.phone.trim(),
             address: form.address.trim(),
+            city: form.city.trim(),
+            postal_code: form.postal_code.trim(),
             nic: form.nic.trim(),
         };
 
@@ -130,6 +142,8 @@ const UserProfile = () => {
             payload.full_name !== (profile.full_name || '') ||
             payload.phone !== profile.phone ||
             payload.address !== profile.address ||
+            payload.city !== (profile.city || '') ||
+            payload.postal_code !== (profile.postal_code || '') ||
             payload.nic !== profile.nic;
 
         if (!hasChanges) {
@@ -146,6 +160,8 @@ const UserProfile = () => {
                 full_name: updated.full_name || '',
                 phone: updated.phone,
                 address: updated.address,
+                city: updated.city || '',
+                postal_code: updated.postal_code || '',
                 nic: updated.nic,
             });
             setIsEditing(false);
@@ -290,6 +306,40 @@ const UserProfile = () => {
                                 />
                             ) : (
                                 profile.address
+                            )}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-500">City</label>
+                        <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl text-gray-900 font-medium">
+                            <MapPinned size={20} className="text-gray-400" />
+                            {isEditing ? (
+                                <input
+                                    name="city"
+                                    value={form.city}
+                                    onChange={handleChange}
+                                    className="w-full bg-transparent outline-none"
+                                    disabled={saving}
+                                />
+                            ) : (
+                                profile.city || 'Not set'
+                            )}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-500">Postal Code</label>
+                        <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl text-gray-900 font-medium">
+                            <Hash size={20} className="text-gray-400" />
+                            {isEditing ? (
+                                <input
+                                    name="postal_code"
+                                    value={form.postal_code}
+                                    onChange={handleChange}
+                                    className="w-full bg-transparent outline-none"
+                                    disabled={saving}
+                                />
+                            ) : (
+                                profile.postal_code || 'Not set'
                             )}
                         </div>
                     </div>

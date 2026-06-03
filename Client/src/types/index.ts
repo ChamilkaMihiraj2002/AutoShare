@@ -158,6 +158,8 @@ export interface UserProfile {
   email: string;
   full_name?: string | null;
   address: string;
+  city?: string | null;
+  postal_code?: string | null;
   nic: string;
   phone: string;
   roles: UserRole[];
@@ -194,6 +196,30 @@ export interface VehicleApi {
   verification_submitted_at?: string | null;
   verification_verified_at?: string | null;
   verification_verified_by?: string | null;
+  average_rating?: number;
+  review_count?: number;
+}
+
+export interface VehicleReviewApi {
+  reviewid: string;
+  rent_id: string;
+  vehicle_id: string;
+  owner_uid: string;
+  renter_uid: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+export interface VehicleReviewSummaryApi {
+  vehicle_id: string;
+  average_rating: number;
+  review_count: number;
+}
+
+export interface VehicleReviewWithAuthorApi extends VehicleReviewApi {
+  reviewer_name?: string | null;
+  reviewer_avatar_url?: string | null;
 }
 
 export interface CustomDateMultiplier {
@@ -329,6 +355,34 @@ export interface ConversationApi {
   last_message_preview?: string | null;
   last_message_sender_uid?: string | null;
   messages: ChatMessage[];
+}
+
+export interface AssistantChatTurn {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface AssistantVehicleRecommendation {
+  vehicle_id: string;
+  name: string;
+  location: string;
+  price_per_day: number;
+  seats: number;
+  type: string;
+  fuel: string;
+  transmission: string;
+  availability: boolean;
+  verified: boolean;
+  image_url?: string | null;
+  reason: string;
+}
+
+export interface AssistantChatResponse {
+  reply: string;
+  recommendations: AssistantVehicleRecommendation[];
+  source: string;
+  model?: string | null;
+  warning?: string | null;
 }
 
 export type AppNotificationType =

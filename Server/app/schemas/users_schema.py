@@ -54,6 +54,8 @@ class UserProfileBase(BaseModel):
     """
     full_name: str | None = None
     address: str
+    city: str | None = None
+    postal_code: str | None = None
     nic: str
     phone: str
     roles: list[UserRole] = Field(
@@ -82,6 +84,8 @@ class UserProfileUpdate(BaseModel):
     """
     full_name: str | None = None
     address: str | None = None
+    city: str | None = None
+    postal_code: str | None = None
     nic: str | None = None
     phone: str | None = None
     roles: list[UserRole] | None = Field(
@@ -125,6 +129,8 @@ class UserProfile(UserProfileBase):
                 "email": "user@example.com",
                 "full_name": "John Doe",
                 "address": "123 Main St",
+                "city": "Colombo",
+                "postal_code": "00300",
                 "nic": "123456789V",
                 "phone": "+94771234567",
                 "roles": [UserRole.VEHICLE_OWNER, UserRole.RENTER],
@@ -154,6 +160,8 @@ class RegisterEmailRequest(BaseModel):
     # Profile Data
     full_name: str | None = None
     address: str
+    city: str | None = None
+    postal_code: str | None = None
     nic: str
     phone: str
     roles: list[UserRole] = Field(

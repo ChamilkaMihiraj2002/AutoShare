@@ -40,8 +40,8 @@ const Footer = () => {
           <h4 className="text-white font-bold mb-6">Contact Info</h4>
           <ul className="space-y-4 text-sm">
             <li className="flex items-center gap-3"><Mail size={16} /> info@autoshare.com</li>
-            <li className="flex items-center gap-3"><Phone size={16} /> +1 (555) 123-4567</li>
-            <li className="flex items-center gap-3"><MapPin size={16} /> 123 Innovation Drive, SF</li>
+            <li className="flex items-center gap-3"><Phone size={16} /> +94 (77) 232 6005</li>
+            <li className="flex items-center gap-3"><MapPin size={16} /> No. 32/A, Colombo 3, Sri Lanka</li>
           </ul>
         </div>
       </div>

@@ -41,6 +41,7 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminBookings from './pages/admin/AdminBookings';
 import AdminVehicles from './pages/admin/AdminVehicles';
 import AdminPricing from './pages/admin/AdminPricing';
+import AIAssistantPopup from './components/messages/AIAssistantPopup';
 
 const AppRoutes = () => {
   const location = useLocation();
@@ -105,6 +106,7 @@ const AppRoutes = () => {
           </Route>
         </Routes>
       </main>
+      {!isAdminDashboard && !hideChrome && <AIAssistantPopup />}
       {!isAdminDashboard && !hideChrome && <Footer />}
     </div>
   );

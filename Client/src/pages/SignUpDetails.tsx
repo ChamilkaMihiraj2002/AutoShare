@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Car, MapPin, Phone, FileText, ArrowLeft } from 'lucide-react';
+import { Car, MapPin, Phone, FileText, ArrowLeft, MapPinned, Hash } from 'lucide-react';
 import { loginSocial, loginWithEmail, registerSocial, registerWithEmail } from '../lib/api';
 import { getAuthToken, setAuthToken } from '../lib/auth';
 import { signInWithGooglePopup } from '../lib/firebase';
@@ -25,6 +25,8 @@ const SignUpDetails = () => {
 
   const [formData, setFormData] = useState({
     address: '',
+    city: '',
+    postal_code: '',
     nic: '',
     phone: '',
   });
@@ -38,6 +40,9 @@ const SignUpDetails = () => {
 
     if (!formData.address || formData.address.trim().length < 5) {
       newErrors.address = 'Please enter a valid address';
+    }
+    if (!formData.city || formData.city.trim().length < 2) {
+      newErrors.city = 'Please enter your city';
     }
     if (!formData.nic || formData.nic.trim().length < 5) {
       newErrors.nic = 'Please enter a valid NIC';
@@ -81,6 +86,8 @@ const SignUpDetails = () => {
           email,
           password,
           address: formData.address,
+          city: formData.city,
+          postal_code: formData.postal_code,
           nic: formData.nic,
           phone: formData.phone,
           roles,
@@ -103,6 +110,8 @@ const SignUpDetails = () => {
         await registerSocial(
           {
             address: formData.address,
+            city: formData.city,
+            postal_code: formData.postal_code,
             nic: formData.nic,
             phone: formData.phone,
             roles,
@@ -210,6 +219,39 @@ const SignUpDetails = () => {
               />
             </div>
             {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">City</label>
+              <div className="relative">
+                <MapPinned className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  placeholder="Colombo"
+                  className={`w-full pl-12 pr-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition ${errors.city ? 'border-red-500' : 'border-gray-200'
+                    }`}
+                />
+              </div>
+              {errors.city && <p className="text-red-500 text-sm">{errors.city}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Postal Code</label>
+              <div className="relative">
+                <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  name="postal_code"
+                  value={formData.postal_code}
+                  onChange={handleChange}
+                  placeholder="00300"
+                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Role Display */}

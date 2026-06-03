@@ -7,6 +7,8 @@ import type {
   AdminVehicleVerificationItem,
   AdminVehiclesResponse,
   AdminUsersResponse,
+  AssistantChatResponse,
+  AssistantChatTurn,
   AuthResponse,
   ConversationApi,
   OwnerEarningsOverview,
@@ -18,6 +20,9 @@ import type {
   UserRole,
   VehicleApi,
   VehicleDynamicPricing,
+  VehicleReviewApi,
+  VehicleReviewSummaryApi,
+  VehicleReviewWithAuthorApi,
 } from '../types';
 import { clearAdminAuthToken, clearAuthToken, getAdminAuthToken, getAuthToken } from './auth';
 import { notifyProfileUpdated } from './profile';
@@ -29,6 +34,7 @@ type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type RawVehicleApi = VehicleApi & { _id?: string };
 type RawRentApi = RentApi & { _id?: string };
 type RawConversationApi = ConversationApi & { _id?: string };
+type RawVehicleReviewApi = VehicleReviewApi & { _id?: string };
 
 function normalizeVehicle(vehicle: RawVehicleApi): VehicleApi {
   const urls = Array.isArray(vehicle.image_urls) ? vehicle.image_urls.filter(Boolean) : [];
@@ -41,17 +47,21 @@ function normalizeVehicle(vehicle: RawVehicleApi): VehicleApi {
     seats: Number.isFinite(vehicle.seats) ? vehicle.seats : 5,
     image_urls,
     image_url,
+    average_rating: Number.isFinite(vehicle.average_rating) ? Number(vehicle.average_rating) : 0,
+    review_count: Number.isFinite(vehicle.review_count) ? Number(vehicle.review_count) : 0,
   };
 }
 
 export function mapVehicleApiToCar(vehicle: VehicleApi) {
+  const reviewCount = vehicle.review_count ?? 0;
+  const averageRating = reviewCount > 0 ? Number((vehicle.average_rating ?? 0).toFixed(1)) : 0;
   return {
     id: vehicle.vehicleid,
     ownerUid: vehicle.owner_uid,
     name: `${vehicle.brand} ${vehicle.model}`,
     price: vehicle.price,
-    rating: 4.8,
-    reviews: 0,
+    rating: averageRating,
+    reviews: reviewCount,
     location: vehicle.location,
     seats: vehicle.seats ?? 5,
     type: vehicle.type,
@@ -62,6 +72,35 @@ export function mapVehicleApiToCar(vehicle: VehicleApi) {
     images: vehicle.image_urls ?? [],
     verified: vehicle.verification_status === 'verified',
   };
+}
+
+function normalizeVehicleReview(review: RawVehicleReviewApi): VehicleReviewApi {
+  return {
+    ...review,
+    reviewid: review.reviewid || review._id || '',
+  };
+}
+
+async function withReviewSummaries(vehicles: RawVehicleApi[]): Promise<VehicleApi[]> {
+  const normalizedVehicles = vehicles.map(normalizeVehicle);
+  const vehicleIds = normalizedVehicles.map((vehicle) => vehicle.vehicleid).filter(Boolean);
+  if (vehicleIds.length === 0) {
+    return normalizedVehicles;
+  }
+
+  const params = new URLSearchParams();
+  vehicleIds.forEach((vehicleId) => params.append('vehicle_id', vehicleId));
+  const summaries = await apiRequest<VehicleReviewSummaryApi[]>(`/vehicle-reviews/summary?${params.toString()}`);
+  const summaryByVehicleId = new Map(summaries.map((summary) => [summary.vehicle_id, summary]));
+
+  return normalizedVehicles.map((vehicle) => {
+    const summary = summaryByVehicleId.get(vehicle.vehicleid);
+    return {
+      ...vehicle,
+      average_rating: summary?.average_rating ?? 0,
+      review_count: summary?.review_count ?? 0,
+    };
+  });
 }
 
 function normalizeRent(rent: RawRentApi): RentApi {
@@ -217,6 +256,8 @@ export async function registerWithEmail(payload: {
   email: string;
   password: string;
   address: string;
+  city?: string;
+  postal_code?: string;
   nic: string;
   phone: string;
   roles: UserRole[];
@@ -230,7 +271,7 @@ export async function getMyProfile(): Promise<UserProfile> {
 
 export async function getMySavedVehicles(): Promise<VehicleApi[]> {
   const vehicles = await apiRequest<RawVehicleApi[]>('/users/me/saved-vehicles', 'GET', undefined, true);
-  return vehicles.map(normalizeVehicle);
+  return withReviewSummaries(vehicles);
 }
 
 export async function saveVehicle(vehicleId: string): Promise<UserProfile> {
@@ -252,6 +293,8 @@ export async function getUserPublicProfile(uid: string): Promise<PublicUserProfi
 export async function updateMyProfile(payload: {
   full_name?: string;
   address?: string;
+  city?: string;
+  postal_code?: string;
   nic?: string;
   phone?: string;
   roles?: UserRole[];
@@ -268,6 +311,8 @@ export async function loginSocial(idToken: string): Promise<UserProfile> {
 export async function registerSocial(
   payload: {
     address: string;
+    city?: string;
+    postal_code?: string;
     nic: string;
     phone: string;
     roles: UserRole[];
@@ -279,12 +324,19 @@ export async function registerSocial(
 
 export async function getPublicVehicles(): Promise<VehicleApi[]> {
   const vehicles = await apiRequest<RawVehicleApi[]>('/vehicles');
-  return vehicles.map(normalizeVehicle);
+  return withReviewSummaries(vehicles);
 }
 
 export async function getPublicVehicleById(vehicleId: string): Promise<VehicleApi | null> {
   const vehicles = await getPublicVehicles();
   return vehicles.find((vehicle) => vehicle.vehicleid === vehicleId) || null;
+}
+
+export async function chatVehicleAssistant(payload: {
+  message: string;
+  history?: AssistantChatTurn[];
+}): Promise<AssistantChatResponse> {
+  return apiRequest<AssistantChatResponse>('/assistant/chat', 'POST', payload);
 }
 
 export async function getMyRents(): Promise<RentApi[]> {
@@ -303,7 +355,26 @@ export async function getOwnerEarnings(): Promise<OwnerEarningsOverview> {
 
 export async function getMyVehicles(): Promise<VehicleApi[]> {
   const vehicles = await apiRequest<RawVehicleApi[]>('/vehicles/', 'GET', undefined, true);
-  return vehicles.map(normalizeVehicle);
+  return withReviewSummaries(vehicles);
+}
+
+export async function getVehicleReviews(vehicleId: string): Promise<VehicleReviewWithAuthorApi[]> {
+  const reviews = await apiRequest<RawVehicleReviewApi[]>(`/vehicle-reviews/vehicle/${vehicleId}`);
+  return reviews.map(normalizeVehicleReview) as VehicleReviewWithAuthorApi[];
+}
+
+export async function getMyVehicleReviews(): Promise<VehicleReviewApi[]> {
+  const reviews = await apiRequest<RawVehicleReviewApi[]>('/vehicle-reviews/me', 'GET', undefined, true);
+  return reviews.map(normalizeVehicleReview);
+}
+
+export async function submitVehicleReview(payload: {
+  rent_id: string;
+  rating: number;
+  comment?: string;
+}): Promise<VehicleReviewApi> {
+  const review = await apiRequest<RawVehicleReviewApi>('/vehicle-reviews/', 'POST', payload, true);
+  return normalizeVehicleReview(review);
 }
 
 export async function getMyVehicleById(vehicleId: string): Promise<VehicleApi> {

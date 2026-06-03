@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from bson import ObjectId
+from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.auth_deps import get_current_user
@@ -14,6 +16,35 @@ router = APIRouter(
     prefix="/payments",
     tags=["Payments"],
 )
+
+
+def _resolve_payhere_amount(pricing_snapshot: dict) -> float:
+    base_total = float(pricing_snapshot.get("total") or 0)
+    service_fee = float(pricing_snapshot.get("service_fee") or 0)
+    return round(base_total + service_fee, 2)
+
+
+def _derive_city(*, user: dict, vehicle: dict) -> str:
+    city = str(user.get("city") or "").strip()
+    if city:
+        return city
+
+    address = str(user.get("address") or "").strip()
+    if address and "," in address:
+        trailing_segment = address.split(",")[-1].strip()
+        if trailing_segment:
+            return trailing_segment
+
+    return str(vehicle.get("location") or "Colombo")
+
+
+def _rent_id_candidates(rent_id: str) -> list[object]:
+    candidates: list[object] = [rent_id]
+    try:
+        candidates.append(ObjectId(rent_id))
+    except (InvalidId, TypeError):
+        pass
+    return candidates
 
 
 @router.post("/payhere/checkout-session", response_model=PayHereCheckoutSessionResponse)
@@ -46,10 +77,28 @@ async def create_payhere_checkout_session(
         )
 
     config = require_payhere_config()
-    amount = f"{float(amount_value):.2f}"
+    amount = f"{_resolve_payhere_amount(pricing_snapshot):.2f}"
     currency = str(pricing_snapshot.get("currency") or "LKR")
     order_id = str(rent.get("_id") or payload.rent_id)
     first_name, last_name = split_name(user.get("full_name"))
+    city = _derive_city(user=user, vehicle=vehicle)
+    payment_summary = {
+        "provider": "payhere",
+        "status": "checkout_initiated",
+        "order_id": order_id,
+        "currency": currency,
+        "amount": amount,
+        "payer": {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": str(user.get("email") or decoded_token.get("email") or ""),
+            "phone": str(user.get("phone") or ""),
+            "address": str(user.get("address") or ""),
+            "city": city,
+            "postal_code": str(user.get("postal_code") or ""),
+            "country": "Sri Lanka",
+        },
+    }
     item_name = f"AutoShare booking for {vehicle.get('brand', '')} {vehicle.get('model', '')}".strip()
     hash_value = build_payhere_hash(
         merchant_id=str(config["merchant_id"]),
@@ -58,6 +107,14 @@ async def create_payhere_checkout_session(
         currency=currency,
         merchant_secret=str(config["merchant_secret"]),
     )
+
+    for rent_id_candidate in _rent_id_candidates(order_id):
+        update_result = await db["rents"].update_one(
+            {"_id": rent_id_candidate},
+            {"$set": {"payment_summary": payment_summary}},
+        )
+        if update_result.matched_count:
+            break
 
     return PayHereCheckoutSessionResponse(
         action_url=str(config["action_url"]),
@@ -70,7 +127,7 @@ async def create_payhere_checkout_session(
         email=str(user.get("email") or decoded_token.get("email") or ""),
         phone=str(user.get("phone") or ""),
         address=str(user.get("address") or ""),
-        city=str(vehicle.get("location") or "Colombo"),
+        city=city,
         country="Sri Lanka",
         order_id=order_id,
         items=item_name,
@@ -89,13 +146,35 @@ async def handle_payhere_notify(
     form = await request.form()
     payload = {key: str(value) for key, value in form.items()}
 
+    order_id = payload.get("order_id")
+    payment_update = {
+        "provider": "payhere",
+        "status": payload.get("status_message") or "notification_received",
+        "order_id": order_id,
+        "payment_id": payload.get("payment_id"),
+        "status_code": payload.get("status_code"),
+        "status_message": payload.get("status_message"),
+        "method": payload.get("method"),
+        "currency": payload.get("payhere_currency"),
+        "amount": payload.get("payhere_amount"),
+    }
+
+    if order_id:
+        for rent_id_candidate in _rent_id_candidates(order_id):
+            update_result = await db["rents"].update_one(
+                {"_id": rent_id_candidate},
+                {"$set": {"payment_summary": payment_update}},
+            )
+            if update_result.matched_count:
+                break
+
     await create_audit_log(
         db,
         action="payments.payhere.notify",
         outcome="success",
         message="Received PayHere payment notification",
         entity_type="payment",
-        entity_id=payload.get("order_id"),
+        entity_id=order_id,
         metadata=payload,
     )
     return {"status": "ok"}
