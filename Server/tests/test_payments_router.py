@@ -18,6 +18,8 @@ async def test_create_payhere_checkout_session_uses_sandbox(fake_db, monkeypatch
             "email": "renter@example.com",
             "full_name": "Jane Doe",
             "address": "123 Main Street",
+            "city": "Kandy",
+            "postal_code": "20000",
             "nic": "123456789V",
             "phone": "+94770000000",
             "roles": ["renter"],
@@ -50,6 +52,7 @@ async def test_create_payhere_checkout_session_uses_sandbox(fake_db, monkeypatch
             "pricing_snapshot": {
                 "currency": "LKR",
                 "total": 24000,
+                "service_fee": 2500,
             },
         }
     )
@@ -62,7 +65,52 @@ async def test_create_payhere_checkout_session_uses_sandbox(fake_db, monkeypatch
 
     assert session.action_url == "https://sandbox.payhere.lk/pay/checkout"
     assert session.order_id == "rent_1"
-    assert session.amount == "24000.00"
+    assert session.amount == "26500.00"
     assert session.first_name == "Jane"
     assert session.last_name == "Doe"
+    assert session.city == "Kandy"
     assert session.hash
+    rent = await fake_db["rents"].find_one({"_id": "rent_1"})
+    assert rent["payment_summary"]["provider"] == "payhere"
+    assert rent["payment_summary"]["amount"] == "26500.00"
+    assert rent["payment_summary"]["payer"]["postal_code"] == "20000"
+    assert rent["payment_summary"]["payer"]["phone"] == "+94770000000"
+
+
+@pytest.mark.asyncio
+async def test_handle_payhere_notify_updates_payment_summary(fake_db):
+    await fake_db["rents"].insert_one(
+        {
+            "_id": "rent_1",
+            "renter_uid": "renter_1",
+            "vehicle_id": "veh_1",
+        }
+    )
+
+    class FakeRequest:
+        async def form(self):
+            return {
+                "order_id": "rent_1",
+                "payment_id": "pay_123",
+                "payhere_amount": "24000.00",
+                "payhere_currency": "LKR",
+                "status_code": "2",
+                "status_message": "success",
+                "method": "VISA",
+            }
+
+    response = await payments_router.handle_payhere_notify(FakeRequest(), db=fake_db)
+
+    assert response == {"status": "ok"}
+    rent = await fake_db["rents"].find_one({"_id": "rent_1"})
+    assert rent["payment_summary"] == {
+        "provider": "payhere",
+        "status": "success",
+        "order_id": "rent_1",
+        "payment_id": "pay_123",
+        "status_code": "2",
+        "status_message": "success",
+        "method": "VISA",
+        "currency": "LKR",
+        "amount": "24000.00",
+    }
