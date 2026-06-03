@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, Users, Fuel, Gauge, Calendar, BadgeCheck, Heart } from 'lucide-react';
 import LoadingScreen from '../components/common/LoadingScreen';
-import { getMyProfile, getPublicVehicleById, getUserPublicProfile, mapVehicleApiToCar, removeSavedVehicle, saveVehicle } from '../lib/api';
+import { getMyProfile, getPublicVehicleById, getUserPublicProfile, getVehicleReviews, mapVehicleApiToCar, removeSavedVehicle, saveVehicle } from '../lib/api';
 import MessagePopup from '../components/messages/MessagePopup';
 import { getAuthToken } from '../lib/auth';
 import { formatLkr } from '../lib/currency';
 import { MOCK_VEHICLES } from '../data/mockVehicles';
 import { getDisplayNameFromEmail, resolveAvatarUrl, resolveBackendAssetUrl } from '../lib/profile';
-import type { Car } from '../types';
+import type { Car, VehicleReviewWithAuthorApi } from '../types';
 
 type VehicleBookingRouteState = {
     startDate?: string;
@@ -36,6 +36,7 @@ const VehicleDetails: React.FC = () => {
     const [savedVehicleIds, setSavedVehicleIds] = React.useState<string[]>([]);
     const [savePending, setSavePending] = React.useState(false);
     const [saveError, setSaveError] = React.useState('');
+    const [reviews, setReviews] = React.useState<VehicleReviewWithAuthorApi[]>([]);
 
     React.useEffect(() => {
         if (routeVehicle) {
@@ -129,6 +130,24 @@ const VehicleDetails: React.FC = () => {
 
         void loadOwner();
     }, [vehicle?.ownerUid]);
+
+    React.useEffect(() => {
+        if (!id) {
+            setReviews([]);
+            return;
+        }
+
+        const loadReviews = async () => {
+            try {
+                const result = await getVehicleReviews(id);
+                setReviews(result);
+            } catch {
+                setReviews([]);
+            }
+        };
+
+        void loadReviews();
+    }, [id]);
 
     if (isLoading) {
         return <LoadingScreen message="Loading vehicle..." />;
@@ -341,16 +360,33 @@ const VehicleDetails: React.FC = () => {
 
                             <h3 className="text-xl font-bold text-gray-900 mb-4">Recent Reviews</h3>
                             <div className="space-y-6">
-                                <div className="border-b border-gray-100 pb-6">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="flex text-orange-400">
-                                            {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
-                                        </div>
-                                        <span className="font-bold text-sm">John D.</span>
-                                        <span className="text-gray-400 text-sm">• 2 weeks ago</span>
+                                {reviews.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+                                        No reviews yet for this vehicle.
                                     </div>
-                                    <p className="text-gray-600">Amazing experience! The car was in perfect condition and the owner was very responsive.</p>
-                                </div>
+                                ) : (
+                                    reviews.map((review) => (
+                                        <div key={review.reviewid} className="border-b border-gray-100 pb-6 last:border-b-0">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="flex text-orange-400">
+                                                    {[...Array(5)].map((_, index) => (
+                                                        <Star
+                                                            key={index}
+                                                            size={14}
+                                                            fill={index < review.rating ? 'currentColor' : 'none'}
+                                                            className={index < review.rating ? 'text-orange-400' : 'text-gray-300'}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <span className="font-bold text-sm">{review.reviewer_name || 'Verified renter'}</span>
+                                                <span className="text-gray-400 text-sm">• {new Date(review.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                            <p className="text-gray-600">
+                                                {review.comment || 'The renter left a star rating without additional comments.'}
+                                            </p>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>

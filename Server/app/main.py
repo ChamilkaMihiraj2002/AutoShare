@@ -23,6 +23,7 @@ import app.routers.vehicles as vehicles
 import app.routers.rents as rents
 import app.routers.messages as messages
 import app.routers.assistant as assistant
+import app.routers.reviews as reviews
 
 
 # --- Import DB Connection Handlers ---
@@ -113,3 +114,4 @@ app.include_router(vehicles.router)
 app.include_router(rents.router)
 app.include_router(messages.router)
 app.include_router(assistant.router)
+app.include_router(reviews.router)
