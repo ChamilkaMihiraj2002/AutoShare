@@ -64,7 +64,7 @@ const MyVehicles = () => {
     setError('');
     try {
       const result = await getMyVehicles();
-      const mapped = result.map((vehicle) => ({
+        const mapped = result.map((vehicle) => ({
         id: vehicle.vehicleid,
         name: `${vehicle.brand} ${vehicle.model}`,
         year: vehicle.year,
@@ -74,7 +74,7 @@ const MyVehicles = () => {
         seats: vehicle.seats,
         location: vehicle.location,
         image: getPrimaryVehicleImage(vehicle.image_urls, vehicle.image_url),
-        rating: 4.8,
+        rating: vehicle.review_count ? Number((vehicle.average_rating ?? 0).toFixed(1)) : 0,
         trips: '-',
         earned: `${formatLkr(vehicle.price)}/day`,
         status: vehicle.availability ? 'Active' : 'Unavailable',

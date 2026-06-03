@@ -33,7 +33,7 @@ const ContactPage = () => {
               </div>
               <div>
                 <h3 className="font-bold text-gray-800">Phone</h3>
-                <p className="text-sm text-gray-500 mt-1">+1 (555) 123-4567</p>
+                <p className="text-sm text-gray-500 mt-1">+94 (77) 232 6005</p>
                 <p className="text-sm text-gray-500">Mon-Fri, 9am-6pm EST</p>
               </div>
             </div>
@@ -44,8 +44,8 @@ const ContactPage = () => {
               </div>
               <div>
                 <h3 className="font-bold text-gray-800">Office</h3>
-                <p className="text-sm text-gray-500 mt-1">123 Innovation Drive</p>
-                <p className="text-sm text-gray-500">San Francisco, CA 94105</p>
+                <p className="text-sm text-gray-500 mt-1">No. 32/A, Colombo 3</p>
+                <p className="text-sm text-gray-500">Sri Lanka</p>
               </div>
             </div>
 
