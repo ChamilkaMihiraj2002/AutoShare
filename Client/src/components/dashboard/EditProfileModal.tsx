@@ -15,14 +15,16 @@ interface EditProfileModalProps {
     isOpen: boolean;
     onClose: () => void;
     currentUser: UserData;
-    onSave: (updatedData: UserData) => void;
+    onSave: (updatedData: UserData) => Promise<void>;
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, currentUser, onSave }) => {
     const [formData, setFormData] = useState<UserData>(currentUser);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         setFormData(currentUser);
+        setIsSubmitting(false);
     }, [currentUser, isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,10 +35,15 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
         }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formData);
-        onClose();
+        setIsSubmitting(true);
+        try {
+            await onSave(formData);
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -50,6 +57,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
+                        disabled={isSubmitting}
                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#003049] focus:border-transparent"
                         required
                     />
@@ -76,6 +84,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
+                        disabled={isSubmitting}
                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#003049] focus:border-transparent"
                         placeholder="+1 (555) 000-0000"
                     />
@@ -89,6 +98,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
                         name="location"
                         value={formData.location}
                         onChange={handleChange}
+                        disabled={isSubmitting}
                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#003049] focus:border-transparent"
                         placeholder="City, State"
                     />
@@ -98,15 +108,17 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, cu
                     <button
                         type="button"
                         onClick={onClose}
+                        disabled={isSubmitting}
                         className="flex-1 px-4 py-2 text-gray-700 font-bold bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
+                        disabled={isSubmitting}
                         className="flex-1 px-4 py-2 text-white font-bold bg-[#003049] rounded-xl hover:bg-[#00263a] transition-colors"
                     >
-                        Save Changes
+                        {isSubmitting ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>
             </form>

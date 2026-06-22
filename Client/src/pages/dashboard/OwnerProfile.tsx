@@ -93,8 +93,10 @@ const OwnerProfile = () => {
     }, []);
 
     const handleSaveProfile = async (updatedData: ProfileViewModel) => {
+        setError('');
         try {
             const profile = await updateMyProfile({
+                full_name: updatedData.name.trim(),
                 address: updatedData.location,
                 phone: updatedData.phone,
             });
@@ -109,7 +111,7 @@ const OwnerProfile = () => {
             });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update profile');
-            return;
+            throw err;
         }
     };
 
