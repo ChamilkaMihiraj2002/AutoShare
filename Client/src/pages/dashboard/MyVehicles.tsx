@@ -7,6 +7,7 @@ import Modal from '../../components/common/Modal';
 import { createMyVehicle, getMyVehicles, updateMyVehicle, uploadVehicleImage, uploadVehicleVerificationDocuments } from '../../lib/api';
 import { formatLkr } from '../../lib/currency';
 import { getPrimaryVehicleImage } from '../../lib/profile';
+import { VEHICLE_TYPES } from '../../lib/vehicleOptions';
 
 type VehicleCard = {
   id: string;
@@ -464,12 +465,9 @@ const MyVehicles = () => {
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Vehicle Type</label>
                   <select name="type" value={form.type} onChange={handleFormChange} className={inputClassName}>
-                    <option>Sedan</option>
-                    <option>SUV</option>
-                    <option>Coupe</option>
-                    <option>Hatchback</option>
-                    <option>Truck</option>
-                    <option>Van</option>
+                    {VEHICLE_TYPES.map((vehicleType) => (
+                      <option key={vehicleType}>{vehicleType}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
