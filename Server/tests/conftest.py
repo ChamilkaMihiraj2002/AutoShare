@@ -26,6 +26,7 @@ class FakeDeleteResult:
 class FakeCollection:
     def __init__(self):
         self._store = {}
+        self.indexes = []
 
     class FakeCursor:
         def __init__(self, docs):
@@ -77,6 +78,10 @@ class FakeCollection:
             return FakeDeleteResult(deleted_count=1)
         return FakeDeleteResult(deleted_count=0)
 
+    async def create_index(self, keys, **kwargs):
+        self.indexes.append({"keys": keys, **kwargs})
+        return f"idx_{len(self.indexes)}"
+
 
 class FakeDB:
     def __init__(self):
@@ -86,6 +91,13 @@ class FakeDB:
     def __getitem__(self, name: str):
         if name not in self._collections:
             self._collections[name] = FakeCollection()
+        return self._collections[name]
+
+    async def list_collection_names(self):
+        return list(self._collections.keys())
+
+    async def create_collection(self, name: str):
+        self.__getitem__(name)
         return self._collections[name]
 
 
