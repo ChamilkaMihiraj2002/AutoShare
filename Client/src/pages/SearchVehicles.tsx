@@ -4,9 +4,9 @@ import { useSearchParams } from 'react-router-dom';
 import CarCard from '../components/cards/CarCard';
 import { getMyProfile, getPublicVehicles, mapVehicleApiToCar, removeSavedVehicle, saveVehicle } from '../lib/api';
 import { getAuthToken } from '../lib/auth';
+import { VEHICLE_TYPES } from '../lib/vehicleOptions';
 import type { Car } from '../types';
 
-const VEHICLE_TYPES = ['Sedan', 'SUV', 'Coupe', 'Hatchback', 'Convertible', 'Truck'];
 const FUEL_TYPES = ['Petrol', 'Diesel', 'Electric', 'Hybrid'];
 const REVIEW_FILTER_OPTIONS = [
     { value: 'all', label: 'Any rating' },

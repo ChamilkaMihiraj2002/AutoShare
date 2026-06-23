@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mail, Phone, MapPin, Calendar, Star, Shield, CheckCircle, Edit2 } from 'lucide-react';
 import EditProfileModal from '../../components/dashboard/EditProfileModal';
-import { getMyProfile, getMyVehicles, updateMyProfile, uploadMyAvatar } from '../../lib/api';
-import { getDisplayNameFromEmail, getRoleLabel, resolveAvatarUrl } from '../../lib/profile';
+import { getMyProfile, getMyVehicles, getOwnerEarnings, getOwnerRents, updateMyProfile, uploadMyAvatar } from '../../lib/api';
+import { formatLkr } from '../../lib/currency';
+import { getProfileDisplayName, getRoleLabel, resolveAvatarUrl } from '../../lib/profile';
 
 type ProfileViewModel = {
     name: string;
@@ -14,9 +15,42 @@ type ProfileViewModel = {
     avatar: string;
 };
 
+type ProfileStats = {
+    vehicleCount: number;
+    bookingCount: number;
+    rating: number;
+    earnings: string;
+};
+
+function calculateOwnerRating(vehicles: Awaited<ReturnType<typeof getMyVehicles>>): number {
+    const totals = vehicles.reduce(
+        (accumulator, vehicle) => {
+            const reviewCount = vehicle.review_count ?? 0;
+            const averageRating = vehicle.average_rating ?? 0;
+
+            return {
+                ratingSum: accumulator.ratingSum + averageRating * reviewCount,
+                reviewCount: accumulator.reviewCount + reviewCount,
+            };
+        },
+        { ratingSum: 0, reviewCount: 0 },
+    );
+
+    if (totals.reviewCount === 0) {
+        return 0;
+    }
+
+    return Number((totals.ratingSum / totals.reviewCount).toFixed(1));
+}
+
 const OwnerProfile = () => {
     const [user, setUser] = useState<ProfileViewModel | null>(null);
-    const [vehicleCount, setVehicleCount] = useState(0);
+    const [stats, setStats] = useState<ProfileStats>({
+        vehicleCount: 0,
+        bookingCount: 0,
+        rating: 0,
+        earnings: formatLkr(0),
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -28,9 +62,14 @@ const OwnerProfile = () => {
             setLoading(true);
             setError('');
             try {
-                const [profile, vehicles] = await Promise.all([getMyProfile(), getMyVehicles()]);
+                const [profile, vehicles, ownerRents, ownerEarnings] = await Promise.all([
+                    getMyProfile(),
+                    getMyVehicles(),
+                    getOwnerRents(),
+                    getOwnerEarnings(),
+                ]);
                 setUser({
-                    name: getDisplayNameFromEmail(profile.email),
+                    name: getProfileDisplayName(profile.full_name, profile.email),
                     email: profile.email,
                     phone: profile.phone,
                     location: profile.address,
@@ -38,7 +77,12 @@ const OwnerProfile = () => {
                     role: getRoleLabel(profile.roles),
                     avatar: resolveAvatarUrl(profile.avatar_url),
                 });
-                setVehicleCount(vehicles.length);
+                setStats({
+                    vehicleCount: vehicles.length,
+                    bookingCount: ownerRents.length,
+                    rating: calculateOwnerRating(vehicles),
+                    earnings: formatLkr(ownerEarnings.summary.all_time.amount),
+                });
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to load profile');
             } finally {
@@ -49,13 +93,15 @@ const OwnerProfile = () => {
     }, []);
 
     const handleSaveProfile = async (updatedData: ProfileViewModel) => {
+        setError('');
         try {
             const profile = await updateMyProfile({
+                full_name: updatedData.name.trim(),
                 address: updatedData.location,
                 phone: updatedData.phone,
             });
             setUser({
-                name: getDisplayNameFromEmail(profile.email),
+                name: getProfileDisplayName(profile.full_name, profile.email),
                 email: profile.email,
                 phone: profile.phone,
                 location: profile.address,
@@ -65,7 +111,7 @@ const OwnerProfile = () => {
             });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update profile');
-            return;
+            throw err;
         }
     };
 
@@ -198,23 +244,23 @@ const OwnerProfile = () => {
                 {/* Right Column: Stats & Activity */}
                 <div className="md:col-span-2 space-y-8">
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center">
-                            <div className="text-2xl font-extrabold text-[#003049] mb-1">{vehicleCount}</div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center">
+                            <div className="text-2xl font-extrabold text-[#003049] mb-1">{stats.vehicleCount}</div>
                             <div className="text-xs font-bold text-gray-400 uppercase tracking-wide">Vehicles</div>
                         </div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center">
-                            <div className="text-2xl font-extrabold text-[#003049] mb-1">73</div>
+                            <div className="text-2xl font-extrabold text-[#003049] mb-1">{stats.bookingCount}</div>
                             <div className="text-xs font-bold text-gray-400 uppercase tracking-wide">Bookings</div>
                         </div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center">
                             <div className="text-2xl font-extrabold text-[#003049] mb-1 flex items-center justify-center gap-1">
-                                4.9 <Star size={16} className="text-orange-500 fill-orange-500" />
+                                {stats.rating.toFixed(1)} <Star size={16} className="text-orange-500 fill-orange-500" />
                             </div>
                             <div className="text-xs font-bold text-gray-400 uppercase tracking-wide">Rating</div>
                         </div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center">
-                            <div className="text-2xl font-extrabold text-[#003049] mb-1">$8.8k</div>
+                            <div className="text-2xl font-extrabold text-[#003049] mb-1">{stats.earnings}</div>
                             <div className="text-xs font-bold text-gray-400 uppercase tracking-wide">Earnings</div>
                         </div>
                     </div>

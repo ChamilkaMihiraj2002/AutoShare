@@ -4,7 +4,7 @@ APP_MODULE := app.main:app
 UVICORN := uvicorn
 REQ := requirements.txt
 
-.PHONY: help venv install run dev docker-build docker-up docker-down lint format test clean
+.PHONY: help venv install run dev init-db docker-build docker-up docker-down lint format test clean
 
 help: ## Show this help
 	@awk 'BEGIN {FS = "[:]"} /^.*:.*##/ { printf "%-15s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -20,6 +20,9 @@ run: ## Run the FastAPI server (development)
 	$(PY) -m $(UVICORN) $(APP_MODULE) --reload --host 0.0.0.0 --port 8000
 
 dev: install run ## Install deps then run server
+
+init-db: ## Create MongoDB collections, indexes, and default seed documents
+	$(PY) scripts/init_db.py
 
 docker-build: ## Build Docker image for server (context: current dir)
 	docker build -t autoshare-server .

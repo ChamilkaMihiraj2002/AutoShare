@@ -40,15 +40,18 @@ MONGODB_DB_NAME=AutoShare
 ```
 
 If you run the API with `docker compose up`, the app container cannot use
-`localhost` to reach MongoDB on your host. This repo's `docker-compose.yml`
-now overrides the connection string to:
+`localhost` to reach MongoDB on your host. This repo's startup code rewrites a
+local Mongo host such as `localhost` or `127.0.0.1` to
+`host.docker.internal` when running inside Docker, so the same
+`MONGODB_URL` can be reused from `Server/.env`.
 
 ```env
-mongodb://admin:admin123@host.docker.internal:27017/
+MONGODB_URL=mongodb://admin:admin123@localhost:27017/AutoShare?authSource=admin
 ```
 
-If you need a different Docker-only URI, set `DOCKER_MONGODB_URL` in
-`Server/.env` before starting Compose.
+If your MongoDB credentials authenticate against the `admin` database, make
+sure `authSource=admin` is present in the URI. Without that parameter, MongoDB
+often rejects valid root/admin credentials with `Authentication failed`.
 
 To copy the existing Atlas data into the local container:
 
@@ -92,3 +95,24 @@ uvicorn app.main:app --reload
 ```
 
 Security note: Never commit your real API keys to Git. Use `.env` (gitignored) or your CI/CD secrets store for production deployments.
+
+## Initialize the MongoDB schema
+
+This project uses MongoDB, so the app-level "schema" is created through
+collections, indexes, and default seed documents.
+
+To bootstrap that structure manually:
+
+```bash
+make init-db
+```
+
+That command will:
+
+- create the app collections used by the API
+- create the admin collections
+- add the important indexes
+- seed the default admin account if it does not already exist
+- seed the global pricing settings document if it does not already exist
+
+The same bootstrap also runs automatically when the FastAPI app starts.

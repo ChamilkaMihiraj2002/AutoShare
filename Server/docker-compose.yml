@@ -23,9 +23,9 @@ services:
       - "host.docker.internal:host-gateway"
 
     environment:
-      # Inside Docker, localhost points at the app container itself.
-      # Override the host-style default from `.env` with a container-safe value.
-      MONGODB_URL: ${DOCKER_MONGODB_URL:-mongodb://admin:admin123@host.docker.internal:27017/}
+      # Let the app reuse MONGODB_URL from `.env`. The startup code rewrites
+      # localhost-style Mongo hosts to host.docker.internal when needed.
+      RUNNING_IN_DOCKER: "true"
       OLLAMA_BASE_URL: ${DOCKER_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       FIREBASE_CREDENTIAL_PATH: /secrets/firebase-service-account.json
       # Optionally loaded from .env; defaults to empty if not set

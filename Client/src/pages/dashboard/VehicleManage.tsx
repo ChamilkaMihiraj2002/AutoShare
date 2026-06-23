@@ -6,6 +6,7 @@ import LoadingScreen from '../../components/common/LoadingScreen';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
 import { deleteMyVehicle, deleteVehicleImage, getMyVehicleById, updateMyVehicle, uploadVehicleImage, uploadVehicleVerificationDocuments } from '../../lib/api';
 import { getPrimaryVehicleImage, resolveBackendAssetUrl } from '../../lib/profile';
+import { VEHICLE_TYPES } from '../../lib/vehicleOptions';
 
 type Toast = {
   type: 'success' | 'error';
@@ -457,12 +458,9 @@ const VehicleManage = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Type</label>
               <select name="type" value={form.type} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200">
-                <option>Sedan</option>
-                <option>SUV</option>
-                <option>Coupe</option>
-                <option>Hatchback</option>
-                <option>Truck</option>
-                <option>Van</option>
+                {VEHICLE_TYPES.map((vehicleType) => (
+                  <option key={vehicleType}>{vehicleType}</option>
+                ))}
               </select>
             </div>
             <div>

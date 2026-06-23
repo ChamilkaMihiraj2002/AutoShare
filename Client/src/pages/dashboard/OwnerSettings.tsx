@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Bell, Shield, Save } from 'lucide-react';
 import { getMyProfile, updateMyProfile, uploadMyAvatar } from '../../lib/api';
-import { DEFAULT_AVATAR, getDisplayNameFromEmail, resolveAvatarUrl } from '../../lib/profile';
+import { DEFAULT_AVATAR, resolveAvatarUrl } from '../../lib/profile';
 
 const OwnerSettings = () => {
     const [activeTab, setActiveTab] = useState('profile');
@@ -38,7 +38,7 @@ const OwnerSettings = () => {
                 const profile = await getMyProfile();
                 setProfileData((prev) => ({
                     ...prev,
-                    name: getDisplayNameFromEmail(profile.email),
+                    name: profile.full_name || '',
                     email: profile.email,
                     phone: profile.phone,
                     address: profile.address,
@@ -59,6 +59,7 @@ const OwnerSettings = () => {
         setError('');
         try {
             const updated = await updateMyProfile({
+                full_name: profileData.name.trim(),
                 phone: profileData.phone,
                 address: profileData.address,
                 city: profileData.city,
@@ -66,6 +67,7 @@ const OwnerSettings = () => {
             });
             setProfileData((prev) => ({
                 ...prev,
+                name: updated.full_name || '',
                 email: updated.email,
                 phone: updated.phone,
                 address: updated.address,
@@ -171,7 +173,7 @@ const OwnerSettings = () => {
                                         type="email"
                                         name="email"
                                         value={profileData.email}
-                                        onChange={handleProfileChange}
+                                        readOnly
                                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
                                     />
                                 </div>

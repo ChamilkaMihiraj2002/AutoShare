@@ -1,7 +1,10 @@
 import os
 import re
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pydantic import BaseModel
+
+from app.core.db_init import initialize_databases
 
 class DBMotorClient(BaseModel):
     client: AsyncIOMotorClient | None = None
@@ -14,6 +17,32 @@ class DBMotorClient(BaseModel):
 db = DBMotorClient()
 admin_db = DBMotorClient()
 
+
+def _normalize_mongodb_url(mongodb_url: str, db_name: str) -> str:
+    """
+    Normalize local/dev MongoDB URLs so the same `.env` works both on the host
+    and inside Docker.
+    """
+    normalized = mongodb_url.strip().strip('"').strip("'")
+    parsed = urlparse(normalized)
+
+    host = parsed.hostname or ""
+    running_in_docker = os.getenv("RUNNING_IN_DOCKER", "").lower() == "true"
+    if running_in_docker and host in {"localhost", "127.0.0.1"}:
+        netloc = parsed.netloc.replace(host, "host.docker.internal", 1)
+        parsed = parsed._replace(netloc=netloc)
+
+    if parsed.scheme.startswith("mongodb") and parsed.path in {"", "/"} and db_name:
+        parsed = parsed._replace(path=f"/{db_name}")
+
+    if parsed.scheme.startswith("mongodb") and parsed.username:
+        query_params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        if "authSource" not in query_params:
+            query_params["authSource"] = "admin"
+            parsed = parsed._replace(query=urlencode(query_params))
+
+    return urlunparse(parsed)
+
 async def connect_to_mongo():
     """
     Connects to MongoDB on app startup.
@@ -24,9 +53,7 @@ async def connect_to_mongo():
     
     if not mongodb_url:
         raise ValueError("MONGODB_URL environment variable not set")
-    # Defensive: some deploy systems (or accidental edits) include surrounding
-    # quotes in the env var. Strip common quote characters.
-    mongodb_url = mongodb_url.strip().strip('"').strip("'")
+    mongodb_url = _normalize_mongodb_url(mongodb_url, db_name)
 
     def _mask_mongo_url(u: str) -> str:
         # mask the password portion for logging
@@ -45,13 +72,9 @@ async def connect_to_mongo():
         db.db = db.client[db_name]
         admin_db.db = db.client[admin_db_name]
         try:
-            await db.db["system_logs"].create_index("created_at")
-            await db.db["system_logs"].create_index([("event_type", 1), ("created_at", -1)])
-            await db.db["system_logs"].create_index([("actor_uid", 1), ("created_at", -1)])
-            await admin_db.db["admins"].create_index("username", unique=True)
-            await admin_db.db["admin_login_events"].create_index("created_at")
+            await initialize_databases(db.db, admin_db.db)
         except Exception:
-            # Index creation should not block app startup in tests or restricted environments.
+            # Database bootstrap should not block app startup in tests or restricted environments.
             pass
         print(f"Connected to MongoDB. Using databases: app={db_name}, admin={admin_db_name}")
     except Exception as e:
