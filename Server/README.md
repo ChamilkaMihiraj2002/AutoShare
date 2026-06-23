@@ -44,7 +44,7 @@ If you run the API with `docker compose up`, the app container cannot use
 now overrides the connection string to:
 
 ```env
-mongodb://admin:admin123@host.docker.internal:27017/
+mongodb://admin:admin123@host.docker.internal:27017/AutoShare?authSource=admin
 ```
 
 If you need a different Docker-only URI, set `DOCKER_MONGODB_URL` in

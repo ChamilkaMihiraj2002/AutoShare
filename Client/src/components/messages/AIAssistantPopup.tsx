@@ -212,10 +212,10 @@ const AIAssistantPopup: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-[140] inline-flex items-center justify-center rounded-full bg-[linear-gradient(135deg,#f77f00_0%,#fcbf49_100%)] p-4 text-slate-950 shadow-[0_18px_48px_rgba(247,127,0,0.35)] transition hover:scale-[1.02]"
+        className="fixed bottom-6 right-6 z-[140] inline-flex items-center justify-center rounded-full border border-slate-200 bg-[linear-gradient(135deg,#003049_0%,#1d4d6d_100%)] p-4 text-white shadow-[0_18px_48px_rgba(0,48,73,0.28)] transition hover:scale-[1.02] hover:shadow-[0_22px_56px_rgba(0,48,73,0.34)]"
         aria-label="Open AI vehicle assistant"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/12 ring-1 ring-white/20">
           {sending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Bot className="h-5 w-5" />}
         </span>
       </button>
