@@ -1,7 +1,11 @@
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+import os
+import requests
 from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadFile, File
+from firebase_admin import auth
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Import our new dependencies and schemas
@@ -14,8 +18,19 @@ from app.repositories.user import (
     set_saved_vehicle_ids,
 )
 from app.repositories.vehicle import get_vehicle_by_id, list_all_vehicles
-from app.schemas import UserProfile, UserProfileUpdate, PublicUserProfile, Vehicle
+from app.schemas import (
+    UserProfile,
+    UserProfileUpdate,
+    PublicUserProfile,
+    Vehicle,
+    ChangePasswordRequest,
+    TwoFactorSetupResponse,
+    TwoFactorStatusResponse,
+    TwoFactorVerifyRequest,
+    TwoFactorDisableRequest,
+)
 from app.services.audit_log import create_audit_log
+from app.services.two_factor_auth import build_otpauth_url, generate_totp_secret, verify_totp_code
 
 router = APIRouter(
     prefix="/users",
@@ -40,6 +55,33 @@ def _normalize_saved_vehicle_ids(saved_vehicle_ids: list[str] | None) -> list[st
             seen.add(cleaned)
             normalized.append(cleaned)
     return normalized
+
+
+def _require_firebase_api_key() -> str:
+    api_key = os.getenv("FIREBASE_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="FIREBASE_API_KEY not set")
+    return api_key
+
+
+def _verify_email_password(email: str, password: str) -> None:
+    try:
+        response = requests.post(
+            f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={_require_firebase_api_key()}",
+            json={"email": email, "password": password, "returnSecureToken": True},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Auth provider error: {exc}") from exc
+    if response.status_code != 200:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect.")
+
+
+def _security_status(profile: dict) -> TwoFactorStatusResponse:
+    return TwoFactorStatusResponse(
+        enabled=bool(profile.get("two_factor_enabled")),
+        pending_setup=bool(profile.get("two_factor_pending_secret")),
+    )
 
 @router.get("/me", response_model=UserProfile)
 async def read_current_user(
@@ -184,6 +226,155 @@ async def upload_avatar(
         metadata={"avatar_url": avatar_url},
     )
     return updated
+
+
+@router.get("/me/two-factor", response_model=TwoFactorStatusResponse)
+async def get_two_factor_status(
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user_uid = decoded_token.get("uid")
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    return _security_status(profile)
+
+
+@router.post("/me/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_current_user_password(
+    payload: ChangePasswordRequest,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user_uid = decoded_token.get("uid")
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be different from the current password.")
+
+    _verify_email_password(profile.get("email", ""), payload.current_password)
+
+    if profile.get("two_factor_enabled"):
+        if not payload.two_factor_code or not verify_totp_code(profile.get("two_factor_secret", ""), payload.two_factor_code):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Valid two-factor authentication code is required.")
+
+    try:
+        auth.update_user(user_uid, password=payload.new_password)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unable to update password: {exc}") from exc
+
+    password_changed_at = datetime.now(timezone.utc).isoformat()
+    await update_user_profile_by_uid(db, uid=user_uid, update_data={"password_changed_at": password_changed_at})
+    await create_audit_log(
+        db,
+        action="users.change_password",
+        outcome="success",
+        message="User changed password",
+        actor_uid=user_uid,
+        actor_email=profile.get("email"),
+        entity_type="user",
+        entity_id=user_uid,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/me/two-factor/setup", response_model=TwoFactorSetupResponse)
+async def begin_two_factor_setup(
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user_uid = decoded_token.get("uid")
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+
+    secret = generate_totp_secret()
+    await update_user_profile_by_uid(db, uid=user_uid, update_data={"two_factor_pending_secret": secret})
+    return TwoFactorSetupResponse(
+        enabled=bool(profile.get("two_factor_enabled")),
+        pending_setup=True,
+        secret=secret,
+        otpauth_url=build_otpauth_url(email=profile.get("email", ""), secret=secret),
+    )
+
+
+@router.post("/me/two-factor/enable", response_model=TwoFactorStatusResponse)
+async def enable_two_factor(
+    payload: TwoFactorVerifyRequest,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user_uid = decoded_token.get("uid")
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+
+    pending_secret = profile.get("two_factor_pending_secret")
+    if not pending_secret:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor setup has not been started.")
+    if not verify_totp_code(pending_secret, payload.code):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication code.")
+
+    updated = await update_user_profile_by_uid(
+        db,
+        uid=user_uid,
+        update_data={
+            "two_factor_enabled": True,
+            "two_factor_secret": pending_secret,
+            "two_factor_pending_secret": None,
+        },
+    )
+    await create_audit_log(
+        db,
+        action="users.enable_two_factor",
+        outcome="success",
+        message="User enabled two-factor authentication",
+        actor_uid=user_uid,
+        actor_email=profile.get("email"),
+        entity_type="user",
+        entity_id=user_uid,
+    )
+    return _security_status(updated or {})
+
+
+@router.post("/me/two-factor/disable", response_model=TwoFactorStatusResponse)
+async def disable_two_factor(
+    payload: TwoFactorDisableRequest,
+    decoded_token: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user_uid = decoded_token.get("uid")
+    profile = await get_user_profile_by_uid(db, uid=user_uid)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    if not profile.get("two_factor_enabled") or not profile.get("two_factor_secret"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is not enabled.")
+
+    _verify_email_password(profile.get("email", ""), payload.current_password)
+    if not verify_totp_code(profile.get("two_factor_secret", ""), payload.code):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication code.")
+
+    updated = await update_user_profile_by_uid(
+        db,
+        uid=user_uid,
+        update_data={
+            "two_factor_enabled": False,
+            "two_factor_secret": None,
+            "two_factor_pending_secret": None,
+        },
+    )
+    await create_audit_log(
+        db,
+        action="users.disable_two_factor",
+        outcome="success",
+        message="User disabled two-factor authentication",
+        actor_uid=user_uid,
+        actor_email=profile.get("email"),
+        entity_type="user",
+        entity_id=user_uid,
+    )
+    return _security_status(updated or {})
 
 
 @router.get("/me/saved-vehicles", response_model=list[Vehicle])

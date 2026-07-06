@@ -16,6 +16,8 @@ import type {
   PricingQuote,
   PublicUserProfile,
   RentApi,
+  TwoFactorSetupResponse,
+  TwoFactorStatusResponse,
   UserProfile,
   UserRole,
   VehicleApi,
@@ -252,6 +254,10 @@ export async function loginWithEmail(email: string, password: string): Promise<A
   return apiRequest<AuthResponse>('/auth/login', 'POST', { email, password });
 }
 
+export async function verifyTwoFactorLogin(two_factor_token: string, code: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/login/2fa', 'POST', { two_factor_token, code });
+}
+
 export async function registerWithEmail(payload: {
   email: string;
   password: string;
@@ -302,6 +308,33 @@ export async function updateMyProfile(payload: {
   const profile = await apiRequest<UserProfile>('/users/me', 'PATCH', payload, true);
   notifyProfileUpdated(profile);
   return profile;
+}
+
+export async function changeMyPassword(payload: {
+  current_password: string;
+  new_password: string;
+  two_factor_code?: string;
+}): Promise<void> {
+  await apiRequest('/users/me/change-password', 'POST', payload, true);
+}
+
+export async function getMyTwoFactorStatus(): Promise<TwoFactorStatusResponse> {
+  return apiRequest<TwoFactorStatusResponse>('/users/me/two-factor', 'GET', undefined, true);
+}
+
+export async function beginMyTwoFactorSetup(): Promise<TwoFactorSetupResponse> {
+  return apiRequest<TwoFactorSetupResponse>('/users/me/two-factor/setup', 'POST', undefined, true);
+}
+
+export async function enableMyTwoFactor(code: string): Promise<TwoFactorStatusResponse> {
+  return apiRequest<TwoFactorStatusResponse>('/users/me/two-factor/enable', 'POST', { code }, true);
+}
+
+export async function disableMyTwoFactor(payload: {
+  current_password: string;
+  code: string;
+}): Promise<TwoFactorStatusResponse> {
+  return apiRequest<TwoFactorStatusResponse>('/users/me/two-factor/disable', 'POST', payload, true);
 }
 
 export async function loginSocial(idToken: string): Promise<UserProfile> {
