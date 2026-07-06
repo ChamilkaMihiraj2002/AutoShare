@@ -120,6 +120,8 @@ class UserProfile(UserProfileBase):
     uid: str = Field(alias="_id") # Maps MongoDB '_id' to 'uid'
     email: EmailStr
     avatar_url: str | None = None
+    two_factor_enabled: bool = False
+    password_changed_at: str | None = None
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -212,3 +214,37 @@ class AuthResponse(BaseModel):
     uid: str
     email: EmailStr | None = None
     idToken: str | None = None
+    two_factor_required: bool = False
+    two_factor_token: str | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+    two_factor_code: str | None = None
+
+
+class TwoFactorSetupResponse(BaseModel):
+    enabled: bool
+    pending_setup: bool
+    secret: str
+    otpauth_url: str
+
+
+class TwoFactorStatusResponse(BaseModel):
+    enabled: bool
+    pending_setup: bool
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    code: str
+
+
+class TwoFactorDisableRequest(BaseModel):
+    current_password: str
+    code: str
+
+
+class LoginTwoFactorRequest(BaseModel):
+    two_factor_token: str
+    code: str

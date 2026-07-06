@@ -2,7 +2,8 @@ import pytest
 from fastapi import HTTPException
 
 from app.routers import users as users_router
-from app.schemas import UserProfileBase
+from app.schemas import ChangePasswordRequest, TwoFactorDisableRequest, TwoFactorVerifyRequest
+from app.services.two_factor_auth import generate_totp_secret
 
 
 @pytest.mark.asyncio
@@ -144,3 +145,74 @@ async def test_remove_saved_vehicle_for_current_user_updates_profile(fake_db):
     assert updated["saved_vehicle_ids"] == ["vehicle_4"]
     logs = list(fake_db["system_logs"]._store.values())
     assert any(log["action"] == "users.remove_saved_vehicle" and log["entity_id"] == vehicle_id for log in logs)
+
+
+@pytest.mark.asyncio
+async def test_change_current_user_password_updates_timestamp_and_audit_log(fake_db, monkeypatch):
+    uid = "secure_user"
+    await fake_db["users"].insert_one(
+        {
+            "_id": uid,
+            "email": "secure@example.com",
+            "address": "A",
+            "nic": "N",
+            "phone": "P",
+            "roles": ["vehicle_owner"],
+        }
+    )
+
+    monkeypatch.setattr(users_router, "_verify_email_password", lambda email, password: None)
+    monkeypatch.setattr(users_router.auth, "update_user", lambda user_uid, password: {"uid": user_uid, "password": password})
+
+    response = await users_router.change_current_user_password(
+        ChangePasswordRequest(current_password="old-secret", new_password="new-secret-123"),
+        decoded_token={"uid": uid},
+        db=fake_db,
+    )
+
+    assert response.status_code == 204
+    updated_profile = await fake_db["users"].find_one({"_id": uid})
+    assert updated_profile["password_changed_at"]
+    logs = list(fake_db["system_logs"]._store.values())
+    assert any(log["action"] == "users.change_password" and log["actor_uid"] == uid for log in logs)
+
+
+@pytest.mark.asyncio
+async def test_enable_and_disable_two_factor_updates_security_flags(fake_db, monkeypatch):
+    uid = "totp_user"
+    secret = generate_totp_secret()
+    await fake_db["users"].insert_one(
+        {
+            "_id": uid,
+            "email": "totp@example.com",
+            "address": "A",
+            "nic": "N",
+            "phone": "P",
+            "roles": ["vehicle_owner"],
+            "two_factor_pending_secret": secret,
+        }
+    )
+
+    monkeypatch.setattr(users_router, "verify_totp_code", lambda saved_secret, code: saved_secret == secret and code == "123456")
+
+    enabled = await users_router.enable_two_factor(
+        TwoFactorVerifyRequest(code="123456"),
+        decoded_token={"uid": uid},
+        db=fake_db,
+    )
+    assert enabled.enabled is True
+    updated_profile = await fake_db["users"].find_one({"_id": uid})
+    assert updated_profile["two_factor_enabled"] is True
+    assert updated_profile["two_factor_secret"] == secret
+
+    monkeypatch.setattr(users_router, "_verify_email_password", lambda email, password: None)
+
+    disabled = await users_router.disable_two_factor(
+        TwoFactorDisableRequest(current_password="old-secret", code="123456"),
+        decoded_token={"uid": uid},
+        db=fake_db,
+    )
+    assert disabled.enabled is False
+    updated_profile = await fake_db["users"].find_one({"_id": uid})
+    assert updated_profile["two_factor_enabled"] is False
+    assert updated_profile["two_factor_secret"] is None
