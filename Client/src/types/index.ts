@@ -39,6 +39,8 @@ export interface AuthResponse {
   uid: string;
   email?: string | null;
   idToken?: string | null;
+  two_factor_required?: boolean;
+  two_factor_token?: string | null;
 }
 
 export interface AdminAuthResponse {
@@ -165,6 +167,18 @@ export interface UserProfile {
   roles: UserRole[];
   avatar_url?: string | null;
   saved_vehicle_ids?: string[];
+  two_factor_enabled?: boolean;
+  password_changed_at?: string | null;
+}
+
+export interface TwoFactorStatusResponse {
+  enabled: boolean;
+  pending_setup: boolean;
+}
+
+export interface TwoFactorSetupResponse extends TwoFactorStatusResponse {
+  secret: string;
+  otpauth_url: string;
 }
 
 export interface PublicUserProfile {

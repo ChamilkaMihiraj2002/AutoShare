@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Car, Mail, Lock, ArrowLeft } from 'lucide-react';
-import { loginSocial, getMyProfile, loginWithEmail } from '../lib/api';
+import { loginSocial, getMyProfile, loginWithEmail, verifyTwoFactorLogin } from '../lib/api';
 import { clearAuthToken, setAuthToken } from '../lib/auth';
 import { signInWithGooglePopup } from '../lib/firebase';
 import { getDefaultDashboardPath } from '../lib/profile';
@@ -10,6 +10,8 @@ const SignIn = () => {
   const navigate = useNavigate();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [twoFactorCode, setTwoFactorCode] = React.useState('');
+  const [twoFactorToken, setTwoFactorToken] = React.useState<string | null>(null);
   const [error, setError] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = React.useState(false);
@@ -20,6 +22,13 @@ const SignIn = () => {
     setIsSubmitting(true);
     try {
       const auth = await loginWithEmail(email, password);
+      if (auth.two_factor_required) {
+        if (!auth.two_factor_token) {
+          throw new Error('Two-factor authentication was required, but no verification token was returned.');
+        }
+        setTwoFactorToken(auth.two_factor_token);
+        return;
+      }
       if (!auth.idToken) {
         throw new Error('Sign-in succeeded but no auth token was returned.');
       }
@@ -28,6 +37,30 @@ const SignIn = () => {
       navigate(getDefaultDashboardPath(profile));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleTwoFactorLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!twoFactorToken) {
+      setError('Two-factor verification session has expired. Please sign in again.');
+      return;
+    }
+
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const auth = await verifyTwoFactorLogin(twoFactorToken, twoFactorCode);
+      if (!auth.idToken) {
+        throw new Error('Two-factor verification succeeded but no auth token was returned.');
+      }
+      setAuthToken(auth.idToken);
+      const profile = await getMyProfile();
+      navigate(getDefaultDashboardPath(profile));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to verify authentication code');
     } finally {
       setIsSubmitting(false);
     }
@@ -74,7 +107,7 @@ const SignIn = () => {
           <p className="text-gray-500">Sign in to your AutoShare account</p>
         </div>
 
-        <form className="space-y-6" onSubmit={handleLogin}>
+        <form className="space-y-6" onSubmit={twoFactorToken ? handleTwoFactorLogin : handleLogin}>
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700">Email Address</label>
             <div className="relative">
@@ -86,6 +119,7 @@ const SignIn = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition"
                 required
+                disabled={Boolean(twoFactorToken)}
               />
             </div>
           </div>
@@ -101,9 +135,27 @@ const SignIn = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition"
                 required
+                disabled={Boolean(twoFactorToken)}
               />
             </div>
           </div>
+
+          {twoFactorToken && (
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Authentication Code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="6-digit code"
+                value={twoFactorCode}
+                onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition"
+                required
+              />
+              <p className="text-sm text-gray-500">Open your authenticator app and enter the current 6-digit code.</p>
+            </div>
+          )}
 
           {error && (
             <p className="text-sm font-medium text-red-600">{error}</p>
@@ -121,7 +173,7 @@ const SignIn = () => {
             disabled={isSubmitting}
             className="w-full bg-[#003049] text-white py-4 rounded-xl font-bold hover:bg-[#002538] transition shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Signing In...' : 'Sign In'}
+            {isSubmitting ? (twoFactorToken ? 'Verifying...' : 'Signing In...') : (twoFactorToken ? 'Verify Code' : 'Sign In')}
           </button>
         </form>
 
@@ -130,7 +182,7 @@ const SignIn = () => {
           <Link to="/signup" className="text-[#003049] font-bold hover:underline">Sign Up</Link>
         </div>
         {/* Social Logins */}
-        <div className="mt-10">
+        {!twoFactorToken && <div className="mt-10">
           <div className="relative flex items-center justify-center mb-8">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
             <span className="relative bg-white px-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Or continue with</span>
@@ -147,7 +199,7 @@ const SignIn = () => {
               {isGoogleSubmitting ? 'Connecting...' : 'Google'}
             </button>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Right Column: Statistics Overlay */}

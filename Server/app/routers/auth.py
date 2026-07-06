@@ -16,12 +16,14 @@ from app.schemas import (
     AuthResponse, 
     RegisterResponse, 
     UserProfile,
-    UserProfileBase
+    UserProfileBase,
+    LoginTwoFactorRequest,
 )
 
 # Import CRUD operations
 from app.repositories.user import create_user_profile, get_user_profile_by_uid
 from app.services.audit_log import create_audit_log
+from app.services.two_factor_auth import create_login_challenge_token, verify_login_challenge_token, verify_totp_code
 
 router = APIRouter(
     prefix="/auth",
@@ -239,6 +241,8 @@ async def login_user(
         raise HTTPException(status_code=401, detail=err)
 
     body = resp.json()
+    profile = await get_user_profile_by_uid(db, uid=body.get("localId"))
+    two_factor_enabled = bool((profile or {}).get("two_factor_enabled"))
     await create_audit_log(
         db,
         action="auth.login_email",
@@ -249,10 +253,63 @@ async def login_user(
         entity_type="user",
         entity_id=body.get("localId"),
     )
+    if two_factor_enabled:
+        challenge_token = create_login_challenge_token(
+            uid=body.get("localId"),
+            email=payload.email,
+            id_token=body.get("idToken"),
+        )
+        return AuthResponse(
+            uid=body.get("localId"),
+            email=payload.email,
+            two_factor_required=True,
+            two_factor_token=challenge_token,
+        )
+
+    return AuthResponse(uid=body.get("localId"), email=payload.email, idToken=body.get("idToken"))
+
+
+@router.post("/login/2fa", response_model=AuthResponse)
+async def complete_two_factor_login(
+    payload: LoginTwoFactorRequest,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    try:
+        challenge = verify_login_challenge_token(payload.two_factor_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+    profile = await get_user_profile_by_uid(db, uid=challenge.get("uid"))
+    if not profile or not profile.get("two_factor_enabled") or not profile.get("two_factor_secret"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is not enabled for this user.")
+
+    if not verify_totp_code(profile.get("two_factor_secret", ""), payload.code):
+        await create_audit_log(
+            db,
+            action="auth.login_email_2fa",
+            outcome="failure",
+            message="Two-factor login verification failed",
+            actor_uid=challenge.get("uid"),
+            actor_email=challenge.get("email"),
+            entity_type="user",
+            entity_id=challenge.get("uid"),
+        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication code.")
+
+    await create_audit_log(
+        db,
+        action="auth.login_email_2fa",
+        outcome="success",
+        message="Two-factor login verification succeeded",
+        actor_uid=challenge.get("uid"),
+        actor_email=challenge.get("email"),
+        entity_type="user",
+        entity_id=challenge.get("uid"),
+    )
     return AuthResponse(
-        uid=body.get("localId"), 
-        email=payload.email, 
-        idToken=body.get("idToken")
+        uid=challenge.get("uid"),
+        email=challenge.get("email"),
+        idToken=challenge.get("id_token"),
     )
 
 
