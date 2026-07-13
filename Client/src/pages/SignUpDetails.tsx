@@ -12,6 +12,7 @@ interface SignUpDetailsState {
   provider: 'email' | 'google';
   email?: string;
   password?: string;
+  from?: string;
 }
 
 const SignUpDetails = () => {
@@ -22,6 +23,7 @@ const SignUpDetails = () => {
   const provider = state?.provider;
   const email = state?.email;
   const password = state?.password;
+  const redirectTo = state?.from;
 
   const [formData, setFormData] = useState({
     address: '',
@@ -120,10 +122,10 @@ const SignUpDetails = () => {
         );
         const profile = await loginSocial(token);
         setAuthToken(token);
-        navigate(getDefaultDashboardPath(profile));
+        navigate(redirectTo || getDefaultDashboardPath(profile));
         return;
       }
-      navigate(roles.includes('vehicle_owner') ? '/dashboard' : '/user-dashboard');
+      navigate(redirectTo || (roles.includes('vehicle_owner') ? '/dashboard' : '/user-dashboard'));
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to complete sign up');
     } finally {

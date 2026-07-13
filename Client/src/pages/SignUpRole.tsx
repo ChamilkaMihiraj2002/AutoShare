@@ -8,6 +8,7 @@ interface SignUpState {
   email?: string;
   password?: string;
   roles?: UserRole[];
+  from?: string;
 }
 
 const OWNER_ROLE: UserRole = 'vehicle_owner';

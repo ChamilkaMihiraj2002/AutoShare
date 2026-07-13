@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Car, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { loginSocial, getMyProfile, loginWithEmail, verifyTwoFactorLogin } from '../lib/api';
 import { clearAuthToken, setAuthToken } from '../lib/auth';
@@ -8,6 +8,8 @@ import { getDefaultDashboardPath } from '../lib/profile';
 
 const SignIn = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = (location.state as { from?: string } | null)?.from;
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [twoFactorCode, setTwoFactorCode] = React.useState('');
@@ -34,7 +36,7 @@ const SignIn = () => {
       }
       setAuthToken(auth.idToken);
       const profile = await getMyProfile();
-      navigate(getDefaultDashboardPath(profile));
+      navigate(redirectTo || getDefaultDashboardPath(profile));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in');
     } finally {
@@ -58,7 +60,7 @@ const SignIn = () => {
       }
       setAuthToken(auth.idToken);
       const profile = await getMyProfile();
-      navigate(getDefaultDashboardPath(profile));
+      navigate(redirectTo || getDefaultDashboardPath(profile));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to verify authentication code');
     } finally {
@@ -73,11 +75,11 @@ const SignIn = () => {
       const { idToken } = await signInWithGooglePopup();
       setAuthToken(idToken);
       const profile = await loginSocial(idToken);
-      navigate(getDefaultDashboardPath(profile));
+      navigate(redirectTo || getDefaultDashboardPath(profile));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to sign in with Google';
       if (message.toLowerCase().includes('profile not found')) {
-        navigate('/signup/role', { state: { provider: 'google' } });
+        navigate('/signup/role', { state: { provider: 'google', from: redirectTo } });
         return;
       }
       clearAuthToken();
@@ -179,7 +181,7 @@ const SignIn = () => {
 
         <div className="mt-8 text-center text-sm font-medium">
           <span className="text-gray-500">Don't have an account? </span>
-          <Link to="/signup" className="text-[#003049] font-bold hover:underline">Sign Up</Link>
+          <Link to="/signup" state={redirectTo ? { from: redirectTo } : undefined} className="text-[#003049] font-bold hover:underline">Sign Up</Link>
         </div>
         {/* Social Logins */}
         {!twoFactorToken && <div className="mt-10">
