@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Car, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { loginSocial } from '../lib/api';
 import { clearAuthToken, setAuthToken } from '../lib/auth';
@@ -8,6 +8,8 @@ import { getDefaultDashboardPath } from '../lib/profile';
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = (location.state as { from?: string } | null)?.from;
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
@@ -15,7 +17,7 @@ const SignUp = () => {
 
   const handleCreateAccount = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/signup/role', { state: { provider: 'email', email, password } });
+    navigate('/signup/role', { state: { provider: 'email', email, password, from: redirectTo } });
   };
 
   const handleGoogleSignUp = async () => {
@@ -25,11 +27,11 @@ const SignUp = () => {
       const { idToken } = await signInWithGooglePopup();
       setAuthToken(idToken);
       const profile = await loginSocial(idToken);
-      navigate(getDefaultDashboardPath(profile));
+      navigate(redirectTo || getDefaultDashboardPath(profile));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to sign up with Google';
       if (message.toLowerCase().includes('profile not found')) {
-        navigate('/signup/role', { state: { provider: 'google' } });
+        navigate('/signup/role', { state: { provider: 'google', from: redirectTo } });
         return;
       }
       clearAuthToken();
@@ -111,7 +113,7 @@ const SignUp = () => {
 
         <div className="mt-8 text-center text-sm font-medium">
           <span className="text-gray-500">Already have an account? </span>
-          <Link to="/signin" className="text-[#003049] font-bold hover:underline">Sign In</Link>
+          <Link to="/signin" state={redirectTo ? { from: redirectTo } : undefined} className="text-[#003049] font-bold hover:underline">Sign In</Link>
         </div>
 
         <div className="mt-8">

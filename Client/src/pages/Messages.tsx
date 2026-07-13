@@ -15,6 +15,7 @@ type ConversationDisplay = {
 const Messages: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isOwnerDashboardView = location.pathname.startsWith('/dashboard');
   const [searchParams] = useSearchParams();
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [conversations, setConversations] = React.useState<ConversationApi[]>([]);
@@ -278,14 +279,20 @@ const Messages: React.FC = () => {
                   <div className="text-center text-sm text-gray-500 pt-12">No messages yet.</div>
                 ) : (
                   selectedConversation.messages.map((message) => {
-                    const isMine = message.sender_uid === profile?.uid;
+                    const currentUserUid = profile?.uid || (isOwnerDashboardView ? selectedConversation.owner_uid : selectedConversation.renter_uid);
+                    const isMine = message.sender_uid === currentUserUid;
                     return (
                       <div key={message.messageid} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                         <div
-                          className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
-                            isMine ? 'bg-[#003049] text-white' : 'bg-white text-gray-800 border border-gray-100'
+                          className={`flex max-w-[75%] flex-col px-4 py-3 text-sm shadow-sm ${
+                            isMine
+                              ? 'items-end rounded-2xl rounded-br-md bg-[#003049] text-white'
+                              : 'items-start rounded-2xl rounded-bl-md border border-gray-100 bg-white text-gray-800'
                           }`}
                         >
+                          <p className={`mb-2 text-[11px] font-semibold uppercase tracking-wide ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
+                            {isMine ? 'Sent' : 'Received'}
+                          </p>
                           <p>{message.text}</p>
                           <p className={`mt-2 text-[11px] ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
                             {new Date(message.created_at).toLocaleString()}

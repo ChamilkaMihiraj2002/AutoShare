@@ -132,6 +132,8 @@ pytest -q
 
 - Backend setup details: `Server/README.md`
 - Frontend scaffold notes: `Client/README.md`
+- Full system documentation: `docs/SYSTEM_DOCUMENTATION.md`
+- Dynamic pricing deep dive: `DYNAMIC_PRICING.md`
 
 ## License
 

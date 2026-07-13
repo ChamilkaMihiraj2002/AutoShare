@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, MapPin, Navigation } from 'lucide-react';
 import MapWidget from '../components/map/MapWidget';
+import AuthRequiredModal from '../components/common/AuthRequiredModal';
 import LoadingScreen from '../components/common/LoadingScreen';
 import { createPayHereCheckoutSession, createRent, getPublicVehicleById, getVehiclePricingQuote, mapVehicleApiToCar } from '../lib/api';
+import { getAuthToken } from '../lib/auth';
 import { formatLkr } from '../lib/currency';
 import type { PayHereCheckoutSession } from '../types';
 import type { Car, PricingQuote } from '../types';
@@ -57,7 +59,9 @@ const submitPayHereForm = (session: PayHereCheckoutSession) => {
 const VehicleBooking: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const locationState = useLocation().state as VehicleBookingRouteState | null;
+  const location = useLocation();
+  const locationState = location.state as VehicleBookingRouteState | null;
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(!getAuthToken());
 
   const [vehicle, setVehicle] = useState<BookingVehicle | null>(null);
   const [loadingVehicle, setLoadingVehicle] = useState(true);
@@ -72,7 +76,7 @@ const VehicleBooking: React.FC = () => {
 
   const [startDate, setStartDate] = useState<string>(locationState?.startDate || new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState<string>(locationState?.endDate || new Date(Date.now() + 86400000).toISOString().slice(0, 10));
-  const [location, setLocation] = useState<string>('');
+  const [vehicleLocation, setVehicleLocation] = useState<string>('');
   const [isEditingDates, setIsEditingDates] = useState(false);
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [destination, setDestination] = useState<{ lat: number; lng: number } | null>(null);
@@ -81,6 +85,10 @@ const VehicleBooking: React.FC = () => {
   const [insurancePlan, setInsurancePlan] = useState<'basic' | 'standard' | 'premium'>('basic');
   const [childSeatCount, setChildSeatCount] = useState(0);
   const [note, setNote] = useState('');
+
+  useEffect(() => {
+    setIsAuthModalOpen(!getAuthToken());
+  }, []);
 
   const geocodeLocation = async (value: string) => {
     const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}`);
@@ -125,7 +133,7 @@ const VehicleBooking: React.FC = () => {
         const mappedVehicle: BookingVehicle = mapVehicleApiToCar(result);
 
         setVehicle(mappedVehicle);
-        setLocation(mappedVehicle.location);
+        setVehicleLocation(mappedVehicle.location);
         await geocodeLocation(mappedVehicle.location);
       } catch (err) {
         setLoadError(err instanceof Error ? err.message : 'Failed to load vehicle');
@@ -199,10 +207,10 @@ const VehicleBooking: React.FC = () => {
 
   const handleLocationUpdate = async () => {
     setIsEditingLocation(false);
-    if (!location.trim()) return;
+    if (!vehicleLocation.trim()) return;
 
     try {
-      await geocodeLocation(location);
+      await geocodeLocation(vehicleLocation);
     } catch (error) {
       console.error('Failed to geocode location:', error);
     }
@@ -210,6 +218,10 @@ const VehicleBooking: React.FC = () => {
 
   const handleConfirmBooking = async () => {
     if (!vehicle) return;
+    if (!getAuthToken()) {
+      setIsAuthModalOpen(true);
+      return;
+    }
 
     setSubmitError('');
     if (pricingError) {
@@ -260,8 +272,15 @@ const VehicleBooking: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <>
+      <AuthRequiredModal
+        isOpen={isAuthModalOpen}
+        onClose={() => navigate(`/vehicles/${id ?? ''}`)}
+        returnTo={location.pathname}
+      />
+
+      <div className="bg-gray-50 min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
         <button onClick={() => navigate(-1)} className="flex items-center text-gray-900 font-medium mb-8 hover:text-gray-700">
           <ArrowLeft size={20} className="mr-2" />
           Back to Vehicle
@@ -322,13 +341,13 @@ const VehicleBooking: React.FC = () => {
                       <div className="font-medium text-gray-900">Vehicle Location</div>
                       {isEditingLocation ? (
                         <div className="flex gap-2 mt-2">
-                          <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full px-2 py-1 border rounded text-sm" />
+                          <input type="text" value={vehicleLocation} onChange={(e) => setVehicleLocation(e.target.value)} className="w-full px-2 py-1 border rounded text-sm" />
                           <button onClick={handleLocationUpdate} className="text-xs bg-orange-100 text-orange-600 px-2 rounded hover:bg-orange-200">
                             Done
                           </button>
                         </div>
                       ) : (
-                        <div className="text-gray-500">{location}</div>
+                        <div className="text-gray-500">{vehicleLocation}</div>
                       )}
                     </div>
                   </div>
@@ -494,8 +513,9 @@ const VehicleBooking: React.FC = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
