@@ -1,2 +1,4 @@
 Server/app/__pycache__/main.cpython-314.pyc
 Server/app/__pycache__/main.cpython-314.pyc
+.pytest_cache/
+.idea/
